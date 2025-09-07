@@ -1,0 +1,16 @@
+FIND TRACK BOUNDARIES
+
+#Find Vertical and horizontal side
+prev_black = 0 #boolean if the previous colour was black or not
+for i in range 2:
+	order = [screen.width, screen.height]
+	for y in range order[0 + i]: #first does vertical side, then changes the order to do horizontal 
+		for x in range order[1 - i]:
+			if pixel.colour == black:
+				if prev_black == 0:
+					pixel.colour = green #change track boundary to green
+					prev_black = 1
+			else: #pixel colour is white or orange
+				prev_black = 0
+				if pixel.colour == white:
+					pixel.colour = orange #change all white to orange cuz mclaren and show that its been checked
