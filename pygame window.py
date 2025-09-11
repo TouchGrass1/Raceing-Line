@@ -1,60 +1,86 @@
+import pygame as pg
+from pygame.locals import *
 import pygame
 
-import pygame_widgets
-from pygame_widgets.button import Button
 
-def find_track_boundaries():
+white, red, black, orange, green = (255, 255, 255), (255, 0, 0), (0, 0, 0), (255, 165, 0), (0, 255, 0)
+
+
+def find_track_boundaries_with_background(screen):
     #Find Vertical and horizontal side
     prev_black = 0 #boolean if the previous colour was black or not
-    for i in range 2:
-    	order = [screen.width, screen.height]
-    	for y in range order[0 + i]: #first does vertical side, then changes the order to do horizontal 
-    		for x in range order[1 - i]:
-    			if get_at((x, y)) == black:
-    				if prev_black == 0:
-    					set_at((x, y), green) #change track boundary to green
-    					prev_black = 1
-    			else: #pixel colour is white or orange
-    				prev_black = 0
-    				if get_at((x, y)) == white:
-    					set_at((x, y), orange) #change all white to orange cuz mclaren and show that its been checked
+    for i in range(2):
+        order = [screen.width, screen,height]
+        for y in range (order[0 + i]): #first does vertical side, then changes the order to do horizontal 
+            for x in range (order[1 - i]):
+                if pg.Surface.get_at(screen, (x, y)) == black:
+                    if prev_black == 0:
+                        pg.set_at(screen, (x, y), green) #change track boundary to green
+                        prev_black = 1
+                    else: #pixel colour is white or orange
+                        prev_black = 0
+                        if pg.Surface.get_at(screen, (x, y)) == white:
+                            pg.set_at(screen, (x, y), orange) #change all white to orange cuz mclaren and show that its been checked
 
-# Set up Pygame
-pygame.init()
-screen = pygame.display.set_mode((600, 600))
-
-# Creates the button with optional parameters
-button = Button(
-    # Mandatory Parameters
-    screen,  # Surface to place button on
-    100,  # X-coordinate of top left corner
-    100,  # Y-coordinate of top left corner
-    300,  # Width
-    150,  # Height
-
-    # Optional Parameters
-    text='Hello',  # Text to display
-    fontSize=50,  # Size of font
-    margin=20,  # Minimum distance between text/image and edge of button
-    inactiveColour=(200, 50, 0),  # Colour of button when not being interacted with
-    hoverColour=(150, 0, 0),  # Colour of button when being hovered over
-    pressedColour=(0, 200, 20),  # Colour of button when being clicked
-    radius=20,  # Radius of border corners (leave empty for not curved)
-    onClick=lambda: print('Click')  # Function to call when clicked on
-)
+#def find_track_boundaries_no_bg(track):
 
 
-run = True
-while run:
-    events = pygame.event.get()
-    for event in events:
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            run = False
-            quit()
+def import_tracks():
+    silverstone = pg.image.load("tracks/silverstone.png").convert_alpha()
+    return silverstone
 
-    screen.fill((255, 255, 255))
+class Button:
+    def __init__(self, x, y, w, h, label):
+        self.rect = pg.Rect(x, y, w, h)
+        self.checked = False
+        self.label = label
+    def draw(self, screen, font):
+        pg.draw.rect(screen, (88, 101, 242), self.rect, width = 2)
+        if self.checked:
+            pg.draw.rect(screen, (255, 255, 255), self.rect)
+        label_text = font.render(self.label, True, (0,0,0))
+        label_rect = label_text.get_rect(center=self.rect.center)
+        screen.blit(label_text, (self.rect.x + 3, self.rect.y + 3))
 
-    pygame_widgets.update(events)  # Call once every loop to allow widgets to render and listen
-    pygame.display.update()
+
+
+
+def main():
+    # Initialise screen
+    pg.init()
+    screen = pg.display.set_mode((1920, 1080))
+    pg.display.set_caption('Racing Lines')
+
+    # Fill background
+    background = pg.Surface(screen.get_size())
+    background = background.convert()
+    background.fill((250, 250, 250))
+
+    # Display some text
+    font = pg.font.Font(None, 36)
+    text = font.render("Hello There", 1, (10, 10, 10))
+    textpos = text.get_rect()
+    textpos.centerx = background.get_rect().centerx
+    background.blit(text, textpos)
+
+    #iport_button = Button(100, 200, 200, 50, "button")    
+    silverstone = import_tracks()
+
+    # Event loop
+    while True:
+        for event in pg.event.get():
+            if event.type == QUIT:
+                return
+            elif event.type == KEYDOWN and event.key == K_ESCAPE:
+                return
+        screen.blit(background, (0, 0))
+        screen.blit(silverstone, (500,300))
+
+        #iport_button.draw(screen, font)
+
+        
+        pg.display.flip()
+
+
+if __name__ == '__main__': main()
 
