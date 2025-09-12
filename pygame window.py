@@ -6,21 +6,21 @@ import pygame
 white, red, black, orange, green = (255, 255, 255), (255, 0, 0), (0, 0, 0), (255, 165, 0), (0, 255, 0)
 
 
-def find_track_boundaries_with_background(screen):
+def find_track_boundaries_with_background(image):
     #Find Vertical and horizontal side
     prev_black = 0 #boolean if the previous colour was black or not
     for i in range(2):
-        order = [screen.width, screen,height]
+        order = [image.get_width(), image.get_height()]
         for y in range (order[0 + i]): #first does vertical side, then changes the order to do horizontal 
             for x in range (order[1 - i]):
-                if pg.Surface.get_at(screen, (x, y)) == black:
+                if pg.Surface.get_at(image, (x, y)) == black:
                     if prev_black == 0:
-                        pg.set_at(screen, (x, y), green) #change track boundary to green
+                        pg.set_at(image, (x, y), green) #change track boundary to green
                         prev_black = 1
                     else: #pixel colour is white or orange
                         prev_black = 0
-                        if pg.Surface.get_at(screen, (x, y)) == white:
-                            pg.set_at(screen, (x, y), orange) #change all white to orange cuz mclaren and show that its been checked
+                        if pg.Surface.get_at(image, (x, y)) == white:
+                            pg.set_at(image, (x, y), orange) #change all white to orange cuz mclaren and show that its been checked
 
 #def find_track_boundaries_no_bg(track):
 
