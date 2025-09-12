@@ -9,12 +9,20 @@ use genetic algorithm - immitates the natural seleciton
 constraints:
 minimum turning circle of the car
 vmax = 380 kph
-amin = 
-amax = 38.5
+amin = -24.5
+amax = 10.7
+mass_min = 878 (798 + 80kg driver)
+mass_max = 988 (110kg of fuel)
 maximum speed at turns
-max lateral gripping force - force experienced is mv^2/r, max force = mu*NCF therefore v^2/r =< mu*g where r>= rmin (min turning radius)
+max lateral gripping force - force experienced is mv^2/r, max force = mu*NCF + (downforce) therefore v^2/r =< mu*g where r>= rmin (min turning radius)
 max accel and decell
-
+mu_soft = 1.4
+mu_med = 1.3
+mu_hard = 1.2
+max corner accel = 4g (not including vertical accel, only lateral)
+downforce = air_density * velocity^2 * downforce_coefficient * wing_area * 0.5
+using stats from mercedes website
+downforce = 0.174686x^2 + 25.6869x + 101.731
 
 assumptions:
 point mass
@@ -23,3 +31,4 @@ point mass
 
 Finding Mu:
 factors: tyre compound - start with only one for now, tyre wear, tyre temp
+warning, difference between mechanical grip(max grip by tyres) vs total grip (including downforce)
