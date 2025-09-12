@@ -1,0 +1,25 @@
+Method:
+find track boundaries
+divide track into small rectangles
+pick a random point in each rectangle
+create a cubic spline
+ensure each point on the spline is in the track, not on boundary
+use genetic algorithm - immitates the natural seleciton
+
+constraints:
+minimum turning circle of the car
+vmax = 380 kph
+amin = 
+amax = 38.5
+maximum speed at turns
+max lateral gripping force - force experienced is mv^2/r, max force = mu*NCF therefore v^2/r =< mu*g where r>= rmin (min turning radius)
+max accel and decell
+
+
+assumptions:
+point mass
+2d only
+0 reaction time
+
+Finding Mu:
+factors: tyre compound - start with only one for now, tyre wear, tyre temp
