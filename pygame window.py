@@ -27,7 +27,7 @@ def colour_track_boundaries(image, height, width):
 def differentiate_track_boundaries(image, height, width):
     outer_boundary = set()
     inner_boundary = set()
-    for y in range (height): #first does vertical side, then changes the order to do horizontal 
+    for y in range (height): # the error with this method is that it only passes each pixel once, if its neighbor changes colour, but it has already been passed, it wont be changed, so should start with blue/ green dots and then work outwards using new tenchnique called flood fille
         for x in range (width):
             if pg.Surface.get_at(image, (x, y))[3] == orange:
                 for neighbor in candidate_neighbors((x, y)):
