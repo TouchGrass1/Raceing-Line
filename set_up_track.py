@@ -19,6 +19,7 @@ def colour_track_boundaries(image, height, width):
                 if pg.Surface.get_at(image, (x, y)) == white:
                     pg.Surface.set_at(image, (x, y), clear)
                 elif pg.Surface.get_at(image, (x, y)) == black:
+                    pg.Surface.set_at(image, (x, y), clear)
                     continue
                 elif pg.Surface.get_at(image, (x, y)) == blue : # 2 dots of blue to signify start
                     start_blue = [x , y]
@@ -48,9 +49,43 @@ def flood_fill(image, start_blue, start_green):
                     continue
                 elif pg.Surface.get_at(image, (neighbor[0], neighbor[1])) == orange:
                     my_set.add((neighbor[0], neighbor[1]))
+    find_order(image, start_blue, start_green)
           
+def find_order(image, start_blue, start_green):
+    order = [[], []]
+    colour = [blue, green]
+    order[0].append((start_blue[0], start_blue[1]))
+    order[1].append((start_green[0], start_green[1]))
 
-  
+    run = True
+    for i in range(2):
+        #while run == True:
+        for k in range(3500):
+            node = order[i][-1]
+            neighbors = candidate_neighbors(node, size= 11)
+            closest = None
+            closest_dist = 1000
+            for neighbor in neighbors:
+                blues = False #to check if there are any blues left
+                if neighbor[0] < 0 or neighbor[1] < 0 or neighbor[0] >= image.get_width() or neighbor[1] >= image.get_height():
+                    continue
+                else:
+                    if pg.Surface.get_at(image, (neighbor[0], neighbor[1])) == colour[i]:
+                        blues = True
+                        dist = hypot(order[i][-1][0] - neighbor[0], order[i][-1][1] - neighbor[1])
+                        if dist < closest_dist and dist !=0: #not the same point
+                            
+                            closest = (neighbor[0], neighbor[1])
+                            closest_dist = dist
+                            if closest_dist == 1:
+                                break #possible optimization
+            if blues == False:
+                run = False
+            if closest is not None:
+                order[i].append(closest)
+                temp = int(k/24)
+                pg.Surface.set_at(image, (closest[0], closest[1]), (temp, 255-temp, temp))
+
 
 
 
@@ -98,6 +133,7 @@ def main():
     #iport_button = Button(100, 200, 200, 50, "button")    
     silverstone, height, width = import_tracks()
     colour_track_boundaries(silverstone, height, width)
+
 
 
     # Event loop
