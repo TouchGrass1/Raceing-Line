@@ -1,42 +1,81 @@
 import pygame as pg
 from pygame.locals import *
+from numpy import hypot, sqrt
 
 
+white, red, black, orange, green, clear, blue = (255, 255, 255), (255, 0, 0), (0, 0, 0), (255, 165, 0), (0, 180, 75), (0, 0, 0, 0), (0, 81, 186)
 
-white, red, black, orange, green, clear, blue = (255, 255, 255), (255, 0, 0), (0, 0, 0), (255, 165, 0), (0, 180, 75), (0, 0, 0, 0), (0, 120, 215)
 
-
-def candidate_neighbors(node):
-    return ((node[0]-1, node[1]-1), (node[0]-1, node[1]), (node[0]-1, node[1]+1), (node[0], node[1]-1), 
-            (node[0], node[1]+1), (node[0]+1, node[1]-1), (node[0]+1, node[1]), (node[0]+1, node[1]+1))
+def candidate_neighbors(node, size = 3):
+    nodes = []
+    for i in range(size):
+        for j in range(size):
+            nodes.append((node[0]+i-int(size/2), node[1]+j-int(size/2)))
+    return (nodes)
 
 def colour_track_boundaries(image, height, width):
         for y in range (height): #first does vertical side, then changes the order to do horizontal 
             for x in range (width):
-                if pg.Surface.get_at(image, (x, y))[3] == 0:
-                     continue
-                elif pg.Surface.get_at(image, (x, y)) == blue or pg.Surface.get_at(image, (x, y)) == green: # 2 dots of blue to signify start
-                     start = [x , y]
-                     continue
-                elif pg.Surface.get_at(image, (x, y)) == black:
-                        pg.Surface.set_at(image, (x, y), clear)
+                if pg.Surface.get_at(image, (x, y))[3] == 0: #or pg.Surface.get_at(image, (x, y)) == black:
+                    continue
+                elif pg.Surface.get_at(image, (x, y)) == black: #for debug
+                    pg.Surface.set_at(image, (x, y), clear)
+                elif pg.Surface.get_at(image, (x, y)) == blue : # 2 dots of blue to signify start
+                    start_blue = [x , y]
+                    continue
+                elif pg.Surface.get_at(image, (x, y)) == green:
+                    start_green = [x , y]
+                    continue
                 else:
-                    pg.Surface.set_at(image, (x, y), red) #change all rest to orange cuz mclaren and show that its been checked
-        differentiate_track_boundaries(image, height, width)
+                    pg.Surface.set_at(image, (x, y), orange) #change all rest to orange cuz mclaren and show that its been checked
+        flood_fill(image, start_blue, start_green)
 
-def differentiate_track_boundaries(image, height, width):
-    outer_boundary = set()
-    inner_boundary = set()
-    for y in range (height): # the error with this method is that it only passes each pixel once, if its neighbor changes colour, but it has already been passed, it wont be changed, so should start with blue/ green dots and then work outwards using new tenchnique called flood fille
-        for x in range (width):
-            if pg.Surface.get_at(image, (x, y))[3] == orange:
-                for neighbor in candidate_neighbors((x, y)):
-                    if pg.Surface.get_at(image, neighbor) == blue:
-                        pg.Surface.set_at(image, (x, y), blue)
-                        outer_boundary.add((x, y))
-                    elif pg.Surface.get_at(image, neighbor) == green:
-                        pg.Surface.set_at(image, (x, y), green)
-                        inner_boundary.add((x, y))
+
+
+def flood_fill(image, start_blue, start_green):
+    blue_set = set()
+    green_set = set()
+    blue_set.add((start_blue[0], start_blue[1]))
+    green_set.add((start_green[0], start_green[1]))
+    outer_list = list()
+    inner_list = list()
+    
+    while len(blue_set) > 0:
+        #outer_list = outer_list.union(blue_set)
+        has_neighbor = False
+        node = blue_set.pop()
+        pg.Surface.set_at(image, (node[0], node[1]), blue)
+        neighbors = candidate_neighbors(node)
+        for neighbor in neighbors:
+            for n in neighbor:
+                if neighbor[0] < 0 or neighbor[1] < 0 or neighbor[0] >= image.get_width() or neighbor[1] >= image.get_height():
+                    continue
+                elif pg.Surface.get_at(image, (neighbor[0], neighbor[1])) == orange:
+                    blue_set.add((neighbor[0], neighbor[1]))
+                    has_neighbor = True
+        if not has_neighbor: #if there is a gap then fill in gap with a line
+            neighbors = candidate_neighbors(node, size= 5)
+            for neighbor in neighbors:
+                for n in neighbor:
+                    if neighbor[0] < 0 or neighbor[1] < 0 or neighbor[0] >= image.get_width() or neighbor[1] >= image.get_height():
+                        continue
+                    elif pg.Surface.get_at(image, (neighbor[0], neighbor[1])) == orange:
+                        blue_set.add((neighbor[0], neighbor[1]))
+                        pg.draw.line(image, blue, (node[0], node[1]), (neighbor[0], neighbor[1]), 1)
+                        has_neighbor = True
+            
+                
+                    
+    
+    while len(green_set) > 0:
+        #inner_list = inner_list.union(blue_set) 
+        node = green_set.pop()
+        pg.Surface.set_at(image, (node[0], node[1]), green)
+        neighbors = candidate_neighbors(node)
+        for neighbor in neighbors:
+            if pg.Surface.get_at(image, (neighbor[0], neighbor[1])) == orange:
+                green_set.add((neighbor[0], neighbor[1]))
+    
 
 
 
