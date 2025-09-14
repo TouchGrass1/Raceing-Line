@@ -1,9 +1,17 @@
 import pygame as pg
 from pygame.locals import *
-from numpy import hypot, sqrt
+import numpy as np
+from math import hypot
+import time
 
-
-white, red, black, orange, green, clear, blue = (255, 255, 255), (255, 0, 0), (0, 0, 0), (255, 165, 0), (0, 180, 75), (0, 0, 0, 0), (0, 81, 186)
+white  = np.array([255, 255, 255], dtype=np.uint8)
+red    = np.array([255, 0, 0], dtype=np.uint8)
+black  = np.array([0, 0, 0], dtype=np.uint8)
+orange = np.array([255, 165, 0], dtype=np.uint8)
+green  = np.array([0, 180, 75], dtype=np.uint8)
+blue   = np.array([0, 81, 186], dtype=np.uint8)
+blue2 = (0, 81, 186)
+green2 = (0, 180, 75)
 
 
 def candidate_neighbors(node, size = 3):
@@ -14,77 +22,101 @@ def candidate_neighbors(node, size = 3):
     return (nodes)
 
 def colour_track_boundaries(image, height, width):
+        img_arr = pg.surfarray.pixels3d(image) #using surfarray to access pixel values, more efficient as written in C
+        
+        #create masks
+        mask_white  = np.all(img_arr == white, axis=2)
+        mask_black  = np.all(img_arr == black, axis=2)
+        mask_blue   = np.all(img_arr == blue, axis=2)
+        mask_green  = np.all(img_arr == green, axis=2)
+        
+        #apply masks
+        img_arr[mask_black] = white
+        img_arr[~(mask_white | mask_black | mask_blue | mask_green)] = orange
+
         for y in range (height): #first does vertical side, then changes the order to do horizontal 
             for x in range (width):
-                if pg.Surface.get_at(image, (x, y)) == white:
-                    pg.Surface.set_at(image, (x, y), clear)
-                elif pg.Surface.get_at(image, (x, y)) == black:
-                    pg.Surface.set_at(image, (x, y), clear)
-                    continue
-                elif pg.Surface.get_at(image, (x, y)) == blue : # 2 dots of blue to signify start
+                if pg.Surface.get_at(image, (x, y)) == blue2: # 2 dots of blue to signify start
                     start_blue = [x , y]
                     continue
-                elif pg.Surface.get_at(image, (x, y)) == green:
+                elif pg.Surface.get_at(image, (x, y)) == green2:
                     start_green = [x , y]
                     continue
-                else:
-                    pg.Surface.set_at(image, (x, y), orange) #change all rest to orange cuz mclaren and show that its been checked
-        flood_fill(image, start_blue, start_green)
+
+        flood_fill(img_arr, start_blue, start_green)
+
 
 #NOTE: all colouring is done just as a visual aid for debugging, will be removed to imporove performance
 
-def flood_fill(image, start_blue, start_green):
-    sets = [set(), set()]
+def flood_fill(img_arr, start_blue, start_green):
 
+
+    sets = [set(), set()]
     sets[0].add((start_blue[0], start_blue[1]))
     sets[1].add((start_green[0], start_green[1]))
-    colour = [blue, green]
-    for i, my_set in enumerate(sets):
-        while len(my_set) > 0:
-            node = my_set.pop()
-            pg.Surface.set_at(image, (node[0], node[1]), colour[i])
-            neighbors = candidate_neighbors(node, size= 5)
-            for neighbor in neighbors:
-                if neighbor[0] < 0 or neighbor[1] < 0 or neighbor[0] >= image.get_width() or neighbor[1] >= image.get_height():
-                    continue
-                elif pg.Surface.get_at(image, (neighbor[0], neighbor[1])) == orange:
-                    my_set.add((neighbor[0], neighbor[1]))
-    find_order(image, start_blue, start_green)
-          
-def find_order(image, start_blue, start_green):
-    order = [[], []]
-    colour = [blue, green]
-    order[0].append((start_blue[0], start_blue[1]))
-    order[1].append((start_green[0], start_green[1]))
+    colours = [blue, green]
 
-    run = True
+    for i, my_set in enumerate(sets):
+        while my_set:
+            node = my_set.pop()
+            img_arr[node] = colours[i]
+
+            for nx, ny in candidate_neighbors(node, size=5):
+                if 0 <= nx < img_arr.shape[0] and 0 <= ny < img_arr.shape[1]:
+                    if np.array_equal(img_arr[nx, ny], orange):
+                        my_set.add((int(nx), int(ny))) 
+
+    # Ensure tuple conversion when passing
+    find_order(img_arr, start_blue, start_green, colours)
+
+          
+def find_order(img_arr, start_blue, start_green, colours):
+    start = time.time()
+    order = [[start_blue], [start_green]]
+
     for i in range(2):
-        #while run == True:
-        for k in range(3500):
+        run = True
+        while run == True:
+
             node = order[i][-1]
-            neighbors = candidate_neighbors(node, size= 11)
+            neighbors = candidate_neighbors(node, size=5)
             closest = None
-            closest_dist = 1000
+            closest_dist = np.inf
+            blues_left = False #to check if there are any blues left
             for neighbor in neighbors:
-                blues = False #to check if there are any blues left
-                if neighbor[0] < 0 or neighbor[1] < 0 or neighbor[0] >= image.get_width() or neighbor[1] >= image.get_height():
-                    continue
-                else:
-                    if pg.Surface.get_at(image, (neighbor[0], neighbor[1])) == colour[i]:
-                        blues = True
-                        dist = hypot(order[i][-1][0] - neighbor[0], order[i][-1][1] - neighbor[1])
-                        if dist < closest_dist and dist !=0: #not the same point
-                            
+                if 0 <= neighbor[0] < img_arr.shape[0] and 0 <= neighbor[1] < img_arr.shape[1]:
+                    if np.array_equal(img_arr[neighbor[0], neighbor[1]], colours[i]):
+                        blues_left = True
+                        dist = hypot(node[0] - neighbor[0], node[1] - neighbor[1])
+                        if 0 < dist < closest_dist: #not the same point
                             closest = (neighbor[0], neighbor[1])
                             closest_dist = dist
                             if closest_dist == 1:
                                 break #possible optimization
-            if blues == False:
-                run = False
+            if blues_left == False:
+                node = order[i][-1] #double check with larger search area
+                neighbors = candidate_neighbors(node, size=11)
+                closest = None
+                closest_dist = np.inf
+                blues_left = False #to check if there are any blues left
+                for neighbor in neighbors:
+                    if 0 <= neighbor[0] < img_arr.shape[0] and 0 <= neighbor[1] < img_arr.shape[1]:
+                        if np.array_equal(img_arr[neighbor[0], neighbor[1]], colours[i]):
+                            blues_left = True
+                            dist = hypot(node[0] - neighbor[0], node[1] - neighbor[1])
+                            if 0 < dist < closest_dist: #not the same point
+                                closest = (neighbor[0], neighbor[1])
+                                closest_dist = dist
+                                if closest_dist == 1:
+                                    break #possible optimization
+                if blues_left == False:
+                    run = False #final exit
             if closest is not None:
                 order[i].append(closest)
-                temp = int(k/24)
-                pg.Surface.set_at(image, (closest[0], closest[1]), (temp, 255-temp, temp))
+                temp = len(order[i])//24
+                img_arr[closest] = [temp, 255 - temp, 180] #change colour
+    print("Time taken to find order:",time.time() - start)
+    return order
 
 
 
