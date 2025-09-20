@@ -22,6 +22,9 @@ def candidate_neighbors(node, size = 3):
             nodes.append((node[0]+i-int(size/2), node[1]+j-int(size/2)))
     return (nodes)
 
+def join_gap(node1, node2):
+    pg.draw.line(track_image, blue, node1, node2)
+
 def colour_track_boundaries(image, height, width):
         img_arr = pg.surfarray.pixels3d(image) #using surfarray to access pixel values, more efficient as written in C
         
@@ -112,7 +115,22 @@ def find_order(img_arr, start_blue, start_green, colours):
     check_return_to_start(order, start_blue, start_green)
     return order
 
+#validation
+def valid_track(image):
+    img_arr = pg.surfarray.pixels3d(image)
+    
 
+    match_blue = np.all(img_arr == blue, axis = -1)
+    match_green = np.all(img_arr == blue, axis = -1)
+    blue_count = np.sum(match_blue)
+    green_count = np.sum(match_green)
+
+    if blue_count == 1 and green_count == 1:
+        return True
+
+    else: 
+        print('you have',blue_count,'blues and',green_count,'greens \n blue value: ',blue, 'green value: ',green)
+        return False
 
 def check_return_to_start(order, start_blue, start_green):
     start = [start_blue, start_green]
@@ -120,7 +138,8 @@ def check_return_to_start(order, start_blue, start_green):
         if hypot(order[i][-1][0] - start[i][0], order[i][-1][1] - start[i][1]) < 1.5:
             print("Returned to start")
             return True
-    
+
+#load and save   
 def save_order(order, track_name):
     filename = f"{track_name}_order.npy"
     np.save(os.path.join('orders', filename), order)
@@ -133,10 +152,7 @@ def load_order(track_name):
     except FileNotFoundError:
         print("No saved order found")
         return None
-
-def join_gap(node1, node2):
-    pg.draw.line(track_image, blue, node1, node2)
-
+    
 def import_tracks(track_name= 'silverstone'):
     global track_image
     track_image  = pg.image.load(f"tracks/{track_name}.png").convert_alpha()
@@ -173,10 +189,11 @@ def main():
     track_image, height, width = import_tracks(track_name)
     order = load_order(track_name)
     if order is None:
-        order = colour_track_boundaries(track_image, height, width)
-        order = np.array(order, dtype=object)
-        save_order(order, track_name)
-    print('order loaded: ', len(order))
+        if valid_track(track_image):
+            order = colour_track_boundaries(track_image, height, width)
+            order = np.array(order, dtype=object)
+            save_order(order, track_name)
+
     print("Time taken to find order:", time.time() - start)
 
 
