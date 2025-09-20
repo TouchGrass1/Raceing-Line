@@ -3,6 +3,7 @@ from pygame.locals import *
 import numpy as np
 from math import hypot
 import time
+import os
 
 white  = np.array([255, 255, 255], dtype=np.uint8)
 red    = np.array([255, 0, 0], dtype=np.uint8)
@@ -43,7 +44,8 @@ def colour_track_boundaries(image, height, width):
                     start_green = [x , y]
                     continue
 
-        flood_fill(img_arr, start_blue, start_green)
+        order = flood_fill(img_arr, start_blue, start_green)
+        return order
 
 
 #NOTE: all colouring is done just as a visual aid for debugging, will be removed to imporove performance
@@ -67,84 +69,88 @@ def flood_fill(img_arr, start_blue, start_green):
                         my_set.add((int(nx), int(ny))) 
 
     # Ensure tuple conversion when passing
-    find_order(img_arr, start_blue, start_green, colours)
+    order = find_order(img_arr, start_blue, start_green, colours)
+    return order
 
           
 def find_order(img_arr, start_blue, start_green, colours):
-    start = time.time()
+    
     order = [[start_blue], [start_green]]
 
     for i in range(2):
         run = True
-        while run == True:
-
+        while run:
             node = order[i][-1]
-            neighbors = candidate_neighbors(node, size=5)
             closest = None
             closest_dist = np.inf
-            blues_left = False #to check if there are any blues left
-            for neighbor in neighbors:
-                if 0 <= neighbor[0] < img_arr.shape[0] and 0 <= neighbor[1] < img_arr.shape[1]:
-                    if np.array_equal(img_arr[neighbor[0], neighbor[1]], colours[i]):
-                        blues_left = True
-                        dist = hypot(node[0] - neighbor[0], node[1] - neighbor[1])
-                        if 0 < dist < closest_dist: #not the same point
-                            closest = (neighbor[0], neighbor[1])
-                            closest_dist = dist
-                            if closest_dist == 1:
-                                break #possible optimization
-            if blues_left == False:
-                node = order[i][-1] #double check with larger search area
-                neighbors = candidate_neighbors(node, size=11)
-                closest = None
-                closest_dist = np.inf
-                blues_left = False #to check if there are any blues left
+
+            for size in [3, 5, 11]: # Loop through progressively larger neighborhood sizes
+                neighbors = candidate_neighbors(node, size=size)
                 for neighbor in neighbors:
                     if 0 <= neighbor[0] < img_arr.shape[0] and 0 <= neighbor[1] < img_arr.shape[1]:
                         if np.array_equal(img_arr[neighbor[0], neighbor[1]], colours[i]):
-                            blues_left = True
                             dist = hypot(node[0] - neighbor[0], node[1] - neighbor[1])
-                            if 0 < dist < closest_dist: #not the same point
+                            if 0 < dist < closest_dist:
                                 closest = (neighbor[0], neighbor[1])
                                 closest_dist = dist
                                 if closest_dist == 1:
-                                    break #possible optimization
-                if blues_left == False:
-                    run = False #final exit
-            if closest is not None:
+                                    break
+                if closest is not None:
+                    if size == 11:
+                        join_gap(order[i][-1], closest)
+                    break  # stop checking larger sizes
+
+            # If no match was found in any size, stop the run
+            if closest is None:
+                run = False
+            else:
                 order[i].append(closest)
-                temp = len(order[i])//24
-                img_arr[closest] = [temp, 255 - temp, 180] #change colour
-    print("Time taken to find order:",time.time() - start)
+                temp = len(order[i]) // 24
+                img_arr[closest] = [temp, 255 - temp, 180]  # update colour
+
+    
+    check_return_to_start(order, start_blue, start_green)
     return order
 
 
 
+def check_return_to_start(order, start_blue, start_green):
+    start = [start_blue, start_green]
+    for i in range(2):
+        if hypot(order[i][-1][0] - start[i][0], order[i][-1][1] - start[i][1]) < 1.5:
+            print("Returned to start")
+            return True
+    
+def save_order(order, track_name):
+    filename = f"{track_name}_order.npy"
+    np.save(os.path.join('orders', filename), order)
+    print(f"Order saved as {filename}")
+
+def load_order(track_name):
+    filename = f"{track_name}_order.npy"
+    try:
+        return np.load(os.path.join('orders', filename), allow_pickle=True)
+    except FileNotFoundError:
+        print("No saved order found")
+        return None
+
+def join_gap(node1, node2):
+    pg.draw.line(track_image, blue, node1, node2)
+
+def import_tracks(track_name= 'silverstone'):
+    global track_image
+    track_image  = pg.image.load(f"tracks/{track_name}.png").convert_alpha()
+    height = track_image.get_height()
+    width = track_image.get_width()
+    return track_image, height, width
 
 
-def import_tracks():
-    silverstone = pg.image.load("tracks/silverstone.png").convert_alpha()
-    height = silverstone.get_height()
-    width = silverstone.get_width()
-    return silverstone, height, width
-
-class Button:
-    def __init__(self, x, y, w, h, label):
-        self.rect = pg.Rect(x, y, w, h)
-        self.checked = False
-        self.label = label
-    def draw(self, screen, font):
-        pg.draw.rect(screen, (88, 101, 242), self.rect, width = 2)
-        if self.checked:
-            pg.draw.rect(screen, (255, 255, 255), self.rect)
-        label_text = font.render(self.label, True, (0,0,0))
-        label_rect = label_text.get_rect(center=self.rect.center)
-        screen.blit(label_text, (self.rect.x + 3, self.rect.y + 3))
 
 
 
 
 def main():
+    start = time.time()
     # Initialise screen
     pg.init()
     screen = pg.display.set_mode((1920, 1080))
@@ -162,10 +168,16 @@ def main():
     textpos.centerx = background.get_rect().centerx
     background.blit(text, textpos)
 
-    #iport_button = Button(100, 200, 200, 50, "button")    
-    silverstone, height, width = import_tracks()
-    colour_track_boundaries(silverstone, height, width)
-
+    #iport_button = Button(100, 200, 200, 50, "button")
+    track_name = 'silverstone' 
+    track_image, height, width = import_tracks(track_name)
+    order = load_order(track_name)
+    if order is None:
+        order = colour_track_boundaries(track_image, height, width)
+        order = np.array(order, dtype=object)
+        save_order(order, track_name)
+    print('order loaded: ', len(order))
+    print("Time taken to find order:", time.time() - start)
 
 
     # Event loop
@@ -176,9 +188,7 @@ def main():
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 return
         screen.blit(background, (0, 0))
-        screen.blit(silverstone, (500,300))
-
-        #iport_button.draw(screen, font)
+        screen.blit(track_image, (500,300))
 
         
         pg.display.flip()
