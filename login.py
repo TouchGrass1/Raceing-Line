@@ -1,6 +1,6 @@
 import pygame as pg
 from pygame.locals import *
-from ComponentModule.components import Button, divider, Slider, Text
+from ComponentModule.components import Text, EntryBox
 
 colour_pallete = {
     'white': (242, 241, 242),
@@ -15,12 +15,14 @@ colour_pallete = {
 }
 
 
-        
-        
+# Using blit to copy content from one surface to other
+
 def main():
     # Initialise screen
     pg.init()
-    screen = pg.display.set_mode((1920, 1080))
+    width = 1920
+    height = 1080
+    screen = pg.display.set_mode((width, height))
     pg.display.set_caption('Racing Lines')
 
     # Fill background
@@ -29,32 +31,26 @@ def main():
     background.fill(colour_pallete['BG grey'])
 
     # Display some text
-    font = pg.font.Font(None, 36)
-    throttle_text = Text(1547, 182, "Throttle", 36) 
-    throttle_text.draw(background)
 
-    
+    welcome = Text((width/2 - 100), (height//4), "Welcome", 72) 
+    welcome.draw(background)
 
-    iport_button = Button(100, 200, 200, 50, "button")
-    divididers = [divider(0, 180, 1538, 3), divider(1535, 0, 3, 1080), divider(200, 180, 3, 900), divider(1538, 750, 383, 3)]   
-    throttle_slider = Slider(1547, 223, 360, 32, 0, 1, 0.8, "Throttle", False)
-
-
+    logo = pg.image.load("Assets/F1logo.png").convert_alpha()
+    input = EntryBox(700, 800, 500, 50)
     # Event loop
     while True:
         for event in pg.event.get():
+            if event.type == pg.MOUSEBUTTONDOWN:
+                input.handle_event(event)
+            if event.type == pg.KEYDOWN:
+                input.handle_event(event)
             if event.type == QUIT:
                 return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 return
         screen.blit(background, (0, 0))
-        for d in divididers:
-            d.draw(screen)
-            
-
-        iport_button.draw(screen, font)
-        throttle_slider.draw(screen, font)
-        
+        screen.blit(logo, (width/2 - logo.get_width()/2, height/2 - logo.get_height()/2))
+        input.draw(screen)
         pg.display.flip()
 
 
