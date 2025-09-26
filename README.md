@@ -27,4 +27,5 @@ Phase 6 - vary for different racing lines and then find the optimum
 
 Phase 7 - draw race line, colour graded for speed
 
-          
+other ideas?
+use mouse wheel to control sliders when u hover over them
