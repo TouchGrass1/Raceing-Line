@@ -11,11 +11,18 @@ elif event.type == MOUSEBUTTONDOWN:
       rect.move_ip(event.rel)
 
 #Zoom feature
+import cv2
+# cv2.INTER_AREA (best for shrinking) and cv2.INTER_CUBIC (best for enlarging)
+image_shape = (x,y)
+scale = x/y
+speed = 1
 elif event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 4:  # Scroll up
-                
+            if event.button == 4:  # Scroll up only counts one scroll, as it counts as one event
+                  new_size = (x+scale*speed, y+speed)
+                  resized_image = cv2.resize(image, new_size, interpolation=cv2.INTER_CUBIC)
             elif event.button == 5:  # Scroll down
-                print("Mouse scrolled down!")
+                  new_size = (x-scale*speed, y-speed)
+                  resized_image = cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
 
 #Create colour pallete
 colours.py
