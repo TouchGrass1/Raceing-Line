@@ -3,16 +3,29 @@ import pygame as pg
 class Drag:
     def __init__(self):
         self.moving = False
-    def handle_event(self, event, rect):
-        if event.type == pg.MOUSEBUTTONDOWN:
+        self.start = (0, 0)
+        self.offset = (0, 0)
+
+    def handle_event(self, event, rect, pos):
+
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            print('clickyy')
+            rect = rect.move(pos)
             if rect.collidepoint(event.pos):
-                moving = True
-        elif event.type == pg.MOUSEBUTTONUP:
-            moving = False
+                self.moving = True
+                self.start = event.pos
+                self.offset = pos
 
-        # Make your image move continuously
-        elif event.type == pg.MOUSEMOTION and moving:
-            rect.move_ip(event.rel)
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
+            print('clickyy up')
+            self.moving = False
 
+        elif event.type == pg.MOUSEMOTION and self.moving:
+            print('dragyy')
+            dx = event.pos[0] - self.start[0]
+            dy = event.pos[1] - self.start[1]
+            return (self.offset[0] + dx, self.offset[1] + dy)
+
+        return pos
 
 
