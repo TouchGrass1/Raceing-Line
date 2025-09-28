@@ -1,105 +1,63 @@
 import pygame as pg
 from pygame.locals import *
-import numpy as np
-
-colour_pallete = {
-    'white': (242, 241, 242),
-    'red': (246, 32, 57),
-    'black': (17, 17, 17),
-    'blue': (41, 82, 148),
-    'BG grey': (2, 29, 33),
-    'orange': (255, 128, 0),
-    'red2': (187, 57, 59),
-    'line grey': (42, 45, 49),
-    'subtle grey': (37, 40, 44)
-}
-
-class Button:
-    def __init__(self, x, y, w, h, label):
-        self.rect = pg.Rect(x, y, w, h)
-        self.checked = False
-        self.label = label
-    def draw(self, screen, font):
-        pg.draw.rect(screen, (88, 101, 242), self.rect, width = 2)
-        if self.checked:
-            pg.draw.rect(screen, (255, 255, 255), self.rect)
-        label_text = font.render(self.label, True, (0,0,0))
-        label_rect = label_text.get_rect(center=self.rect.center)
-        screen.blit(label_text, (self.rect.x + 3, self.rect.y + 3))
-
-class divider:
-    def __init__(self, x, y, w, h):
-        self.rect = pg.Rect(x, y, w, h)
-    def draw(self, screen):
-        pg.draw.rect(screen, colour_pallete['line grey'], self.rect)
-        
-class Slider:
-    def __init__(self, x, y, w, h, min_val, max_val, initial_val, label, active):
-        self.active = active
-        self.rect = pg.Rect(x, y, w, h)
-        self.min = min_val
-        self.max = max_val
-        self.val = initial_val
-        self.oldval = initial_val
-        self.label = label
-        self.dragging = False
-        self.handle_x = x + (initial_val - min_val)/(max_val - min_val) * w
-        self.font = pg.font.Font(None, 30)
-
-    def draw(self, screen, font):
-        # Draw slider track
-        pg.draw.rect(screen, colour_pallete['subtle grey'], self.rect, border_radius=23)
-
-        
-        if self.active:        
-            # Draw handle
-            pg.draw.circle(screen, (255, 255, 255), 
-                            (int(self.handle_x), self.rect.centery), 10)
-            
-            # Draw labels
-            label_text = font.render(self.label, True, (255,255,255))
-            screen.blit(label_text, (self.rect.x - 20, self.rect.y - 30))
-            
-            min_text = font.render(f"{self.min:.1f}", True, (255,255,255))
-            screen.blit(min_text, (self.rect.left - 40, self.rect.centery))
-            
-            max_text = font.render(f"{self.max:.1f}", True, (255,255,255))
-            screen.blit(max_text, (self.rect.right + 10, self.rect.centery ))
-            
-            val_text = font.render(f"{self.val:.2f}", True, (255,255,255))
-            screen.blit(val_text, (self.handle_x - 15, self.rect.bottom + 5))
-        
-        else:
-            x = (self.val - self.min)/(self.max - self.min) * self.rect.width
-            rect = pg.Rect(self.rect.left, self.rect.top, x, self.rect.height )
-            pg.draw.rect(screen, colour_pallete['red2'], rect, border_radius=23)
-            
-            val_text = self.font.render(f"{self.val*100:.2n}%", 1, colour_pallete['white'])
-            pos = (self.rect.right - val_text.get_width(), self.rect.bottom + val_text.get_height())
-            screen.blit(val_text, pos)
+from ComponentModule.components import *
+from colours import colour_pallete
 
 
-    def update_value(self, mouse_x):
-        if self.active:
-            self.handle_x = np.clip(mouse_x, self.rect.left, self.rect.right)
-            self.val = self.min + (self.handle_x - self.rect.left)/self.rect.width * (self.max - self.min)
-        else:
-            pass
+def left_panel(screen_shape, left_panel_border_x):
+    width = int(left_panel_border_x*0.85)
+    height = width*0.3
+    x_margin = int((left_panel_border_x - width)//2)
+    reset_btn = Button(x_margin, int(0.9*screen_shape[1]), int(left_panel_border_x*0.85), height, "Reset")
+    return reset_btn
 
-class Text:
-    def __init__(self, x, y, text, font_size):
-        self.pos = (x, y)
-        self.text = text
-        self.font = pg.font.Font(None, font_size)
-    def draw(self, background):
-        text = self.font.render(str(self.text), 1, colour_pallete['white'])
-        background.blit(text, self.pos)
-        
+def right_panel(background, throttle_val, brake_val, right_panel_border_x, screen_shape, font_size):
+    x_margin = int(right_panel_border_x + (screen_shape[0]//128))
+    panel_width = int(screen_shape[0] - right_panel_border_x)
+    panel_height = screen_shape[1]
+    slider_width, slider_height = int(panel_width* 15/16), int(panel_height * 0.03)
+    #throttle
+    throttle_text = Text(x_margin, (panel_height // 6), "Throttle", font_size) 
+    throttle_text.draw(background)
+    throttle_slider = Slider(x_margin, int(panel_height * 0.2), slider_width, slider_height, 0, 1, throttle_val, "Throttle", False)
+
+    #brake
+    brake_text = Text(x_margin, int(panel_height * 4/15), "brake", font_size) 
+    brake_text.draw(background)
+    brake_slider = Slider(x_margin, int(panel_height * 0.3), slider_width, slider_height, 0, 1, brake_val, "Brake", False)
+    return throttle_slider, brake_slider
+
+def top_panel(background, time, lap_no, pb, track_name, weather, screen_shape, font_size, track_list):
+    end_x = int(0.8 * screen_shape[0])
+    even_spacing = int(end_x // 6)
+    x_margin = 0 # screen_shape[0]//128
+    y = 60
+    time_text = Text(x_margin + (even_spacing * 5) , y, f"Time: {time}", font_size)
+    time_text.draw(background)
+
+    lap_text = Text(x_margin + (even_spacing * 4), y, f"Lap: {lap_no}", font_size) 
+    lap_text.draw(background)
+
+    pb_text = Text(x_margin + (even_spacing * 3), y, f"PB: {pb}", font_size)
+    pb_text.draw(background)
+
+    track_text = Text(x_margin + (even_spacing * 2), y, f"Track: {track_name}", font_size) #temp
+    track_text.draw(background)
+    track_dropdown = Dropdown(x_margin + (even_spacing * 2), y + 40, 150, 30, track_name, track_list)
+
+    weather_text = Text(x_margin + even_spacing, y, f"Weather: {weather}", font_size) #temp
+    weather_text.draw(background)
+
+    return track_dropdown
+
+
+       
         
 def main():
     # Initialise screen
     pg.init()
     screen = pg.display.set_mode((1920, 1080))
+    screen_shape = screen.get_size()
     pg.display.set_caption('Racing Lines')
 
     # Fill background
@@ -108,16 +66,20 @@ def main():
     background.fill(colour_pallete['BG grey'])
 
     # Display some text
-    font = pg.font.Font(None, 36)
-    throttle_text = Text(1547, 182, "Throttle", 36) 
-    throttle_text.draw(background)
+    font_size = screen_shape[1]//30
+    font = pg.font.Font(None, font_size)
+
 
     
+    right_panel_border_x = 0.8 * screen_shape[0]
+    top_panel_border_y = screen_shape[1] // 6
+    left_panel_border_x = 0.1 * screen_shape[0]
 
-    iport_button = Button(100, 200, 200, 50, "button")
-    divididers = [divider(0, 180, 1538, 3), divider(1535, 0, 3, 1080), divider(200, 180, 3, 900), divider(1538, 750, 383, 3)]   
-    throttle_slider = Slider(1547, 223, 360, 32, 0, 1, 0.8, "Throttle", False)
-
+    divididers = [divider(0, top_panel_border_y, right_panel_border_x, 3), divider(right_panel_border_x, 0, 3, screen_shape[1]), divider(left_panel_border_x, top_panel_border_y, 3, screen_shape[1]-top_panel_border_y), divider(right_panel_border_x, 750, 383, 3)]   
+    track_list = ["Monaco", "Silverstone", "Spa", "Interlagos", "Suzuka", "Yas Marina", "Import"]#will be updated with customs tracks that are added
+    track_dropdown = top_panel(background, "0:00.000", 1, "0:00.000", "Monaco", "Sunny", screen_shape, font_size, track_list)
+    throttle_slider, brake_slider =  right_panel(background, 0.5, 0.9, right_panel_border_x, screen_shape, font_size)
+    reset_btn = left_panel(screen_shape, left_panel_border_x)
 
     # Event loop
     while True:
@@ -126,13 +88,18 @@ def main():
                 return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 return
+            # if event.type == pg.MOUSEBUTTONDOWN:
+            #     print(pg.mouse.get_pos())
         screen.blit(background, (0, 0))
         for d in divididers:
             d.draw(screen)
             
-
-        iport_button.draw(screen, font)
+        reset_btn.handle_event(event)
+        reset_btn.draw(screen, font)
         throttle_slider.draw(screen, font)
+        brake_slider.draw(screen, font)
+        track_dropdown.handle_event(event)
+        track_dropdown.draw(screen, font)
         
         pg.display.flip()
 

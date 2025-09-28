@@ -155,7 +155,7 @@ def load_order(track_name):
     
 def import_tracks(track_name= 'silverstone'):
     global track_image
-    track_image  = pg.image.load(f"tracks/{track_name}.png").convert_alpha()
+    track_image  = pg.image.load(f"Assets/tracks/{track_name}.png").convert_alpha()
     height = track_image.get_height()
     width = track_image.get_width()
     return track_image, height, width
