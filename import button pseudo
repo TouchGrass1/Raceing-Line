@@ -1,0 +1,26 @@
+#import button
+#upon click
+#load popup to write file path
+#rect in center of screen with UPLOAD FILE, enter file path, then entry box
+#upload png
+import shutil #lib to move files
+TARGET_DIRECTORY = "./Assets/tracks"
+
+def upload(file_path):
+    if file_path:  # If a file was selected
+        try:
+            # Move the file to the target directory
+            shutil.copy(file_path, TARGET_DIRECTORY)
+            print(f"File uploaded to {TARGET_DIRECTORY}")
+        except Exception as e:
+            print(f"Error uploading file: {e}")
+
+
+
+#save to assets/tracks folder
+#run validations
+#if valid:
+#add to drop down menu, max 5 otherwise it gets cluttered, maybe implement scroll
+#else
+#report error
+
