@@ -1,7 +1,9 @@
 import pygame as pg
 from pygame.locals import *
 from ComponentModule.components import *
-from colours import colour_pallete
+from colours import colour_palette
+
+
 
 
 def left_panel(screen_shape, left_panel_border_x):
@@ -63,7 +65,7 @@ def main():
     # Fill background
     background = pg.Surface(screen.get_size())
     background = background.convert()
-    background.fill(colour_pallete['BG grey'])
+    background.fill(colour_palette['BG_GREY'].value)
 
     # Display some text
     font_size = screen_shape[1]//30

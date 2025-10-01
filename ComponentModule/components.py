@@ -61,23 +61,16 @@ class Dropdown(Button):
             label_text = font.render(self.label, True, colour_pallete['white'])
             label_rect = label_text.get_rect(center=self.rect.center)
             screen.blit(label_text, label_rect)
-            repeated = 10000
             for i, option in enumerate(self.options):
-                if option == self.selected_option:
-                    repeated = i #this is the one that is repeated and shift everythig else up
-                    pass
+                if i == self.hover_options: colour = colour_pallete['red2'] #hover
+                else: colour = colour_pallete['line grey']
+                if i == len(self.options) - 1:
+                    pg.draw.rect(screen, colour, self.option_rects[i], border_bottom_left_radius= 20, border_bottom_right_radius= 20) #last option
                 else:
-                    if i > repeated:
-                        self.option_rects[i].y = self.rect.y + i*self.rect.height # #shift up
-                    if i == self.hover_options: colour = colour_pallete['red2'] #hover
-                    else: colour = colour_pallete['line grey']
-                    if i == len(self.options) - 1:
-                        pg.draw.rect(screen, colour, self.option_rects[i], border_bottom_left_radius= 20, border_bottom_right_radius= 20) #last option
-                    else:
-                        pg.draw.rect(screen, colour, self.option_rects[i])
-                    option_text = font.render(option, True, colour_pallete['white'])
-                    option_rect = option_text.get_rect(center=self.option_rects[i].center)
-                    screen.blit(option_text, option_rect)
+                    pg.draw.rect(screen, colour, self.option_rects[i])
+                option_text = font.render(option, True, colour_pallete['white'])
+                option_rect = option_text.get_rect(center=self.option_rects[i].center)
+                screen.blit(option_text, option_rect)
         else: super().draw(screen, font)
                 
     def handle_event(self, event):
@@ -85,7 +78,6 @@ class Dropdown(Button):
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
             if self.rect.collidepoint(event.pos) and not self.expanded: #click once and hold on main button:
                 self.expanded = True
-                print('expanded')
 
             elif self.expanded: #click on options
                 for i, rect in enumerate(self.option_rects):
@@ -94,31 +86,20 @@ class Dropdown(Button):
                         self.label = self.selected_option
                         self.expanded = False
                         print('2', self.selected_option)
-                    break
-            else: 
+        if event.type == pg.MOUSEBUTTONUP and not self.rect.collidepoint(event.pos):
                 self.expanded = False
-                print('collapsed')
 
         if event.type == pg.MOUSEMOTION and self.expanded:
             self.hover_options = -1
             for i, rect in enumerate(self.option_rects):
-                if rect.collidepoint(event.pos) and self.options[i] != self.selected_option:
+                if rect.collidepoint(event.pos):
                     self.hover_options = i
                     break
                 
-        if event.type == pg.MOUSEMOTION and not self.expanded:
-            if self.rect.collidepoint(event.pos):
-                self.hover = True
-            else:
-                self.hover = False
 
 
-
-
-        #if expanded hover over other options
-        #click on other options, collapse, change label
-
-
+    def get_track(self):
+        return self.selected_option
 
 
 class divider:
