@@ -15,8 +15,10 @@ colour_pallete = {
 }
 
 class Button:
-    def __init__(self, x, y, w, h, label):
-        self.rect = pg.Rect(x, y, w, h)
+    def __init__(self, x, y, screen_shape, label):
+        self.width = 150/1920 * screen_shape[0]
+        self.height = 30/1080 * screen_shape[1]
+        self.rect = pg.Rect(x, y, self.width, self.height)
         self.clicked = False
         self.clicking = False # To handle holding down the button
         self.hover = False
@@ -36,7 +38,8 @@ class Button:
                 self.clicking = True
         if event.type == pg.MOUSEBUTTONUP:
             if self.clicking and self.rect.collidepoint(event.pos):
-                self.clicked = not self.clicked
+                #self.clicked = not self.clicked for toggle button
+                self.clicked = True #for normal button
             self.clicking = False
         
         if event.type == pg.MOUSEMOTION:
@@ -44,16 +47,21 @@ class Button:
                 self.hover = True
             else:
                 self.hover = False
-
+    def get_clicked(self):
+        if self.clicked:
+            self.clicked = False
+            return True
+        return False
+    
 class Dropdown(Button):
-    def __init__(self, x, y, w, h, label, options):
-        super().__init__(x, y, w, h, label)
+    def __init__(self, x, y, screen_shape, label, options):
+        super().__init__(x, y, screen_shape, label)
         self.options = options
         self.expanded = False
         self.selected_option = label
         print('1', self.selected_option)
         self.hover_options = -1
-        self.option_rects = [pg.Rect(x, y + (i+1)*h, w, h) for i in range(len(options))]
+        self.option_rects = [pg.Rect(x, y + (i+1)*self.height, self.width, self.height) for i in range(len(options))]
     def draw(self, screen, font):
         
         if self.expanded:
@@ -102,11 +110,37 @@ class Dropdown(Button):
         return self.selected_option
 
 
-class divider:
+class Divider:
     def __init__(self, x, y, w, h):
         self.rect = pg.Rect(x, y, w, h)
+
     def draw(self, screen):
         pg.draw.rect(screen, colour_pallete['line grey'], self.rect)
+
+
+class Dividers:
+    DIVIDER_THICKNESS = 3
+
+    def __init__(self, screen_shape, ):
+        top_panel_border_y = screen_shape[1] // 6
+        right_panel_border_x = int(0.8 * screen_shape[0])
+        left_panel_border_x = int(0.1 * screen_shape[0])
+        right_pages_border_y = int(0.7 * screen_shape[1])
+        right_pages_width = screen_shape[0] - right_panel_border_x
+
+        self.dividers = {
+            "top_panel": Divider(0, top_panel_border_y, right_panel_border_x, self.DIVIDER_THICKNESS),
+            "right_panel": Divider(right_panel_border_x, 0, self.DIVIDER_THICKNESS, screen_shape[1]),
+            "left_panel": Divider(left_panel_border_x, top_panel_border_y, self.DIVIDER_THICKNESS, screen_shape[1] - top_panel_border_y),
+            "right_pages": Divider(right_panel_border_x, right_pages_border_y, right_pages_width, self.DIVIDER_THICKNESS),
+        }
+
+    def draw(self, screen):
+        for divider in self.dividers.values():
+            divider.draw(screen)
+
+    def get(self, name):
+        return self.dividers.get(name)
         
 class Slider:
     def __init__(self, x, y, w, h, min_val, max_val, initial_val, label, active):
