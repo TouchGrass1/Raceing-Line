@@ -1,7 +1,7 @@
-from set_up_track import import_tracks
+from set_up_track import LoadTrack
 import pygame as pg
 from pygame.locals import *
-from colours import colour_pallete
+from colours import colour_palette
 import time
 from ComponentModule.zoom import *
 from ComponentModule.clickNdrag import *
@@ -27,7 +27,7 @@ def main():
 
     #iport_button = Button(100, 200, 200, 50, "button")
     track_name = 'silverstone' 
-    track_image, height, width = import_tracks(track_name)
+    track_image, height, width = LoadTrack.import_tracks(track_name)
 
     zoom = Zoom(track_image)
     drag = Drag()
