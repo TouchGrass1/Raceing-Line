@@ -172,7 +172,7 @@ class LoadTrack:
             print("No saved order found")
             return None
         
-    def import_tracks(track_name= 'silverstone'):
+    def import_tracks(track_name= 'qatar'):
         global track_image
         try:
             track_image  = pg.image.load(f"Assets/tracks/{track_name}.png").convert_alpha()
@@ -238,7 +238,7 @@ def main():
     background.blit(text, textpos)
 
     #iport_button = Button(100, 200, 200, 50, "button")
-    track_name = 'silverstone' 
+    track_name = 'monza' 
     order_of_operations = OrderOfOperations(track_name)
     order_of_operations.run()
     track_image = order_of_operations.get_track_image()

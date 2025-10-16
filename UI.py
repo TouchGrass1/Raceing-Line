@@ -118,7 +118,7 @@ def main():
     right_panel = RightPanel(screen_shape, font, font_size)
 
     # Track setup
-    track_list = ["Monaco", "Silverstone", "Spa", "Interlagos", "Suzuka", "Yas Marina", "Import"]
+    track_list = ["Monaco", "Silverstone", "Qatar", "Monza", "Suzuka", "Yas Marina", "Import"]
     track_name = "Silverstone"
     track_dropdown = top_panel.track_name_display(track_name, track_list)
 
