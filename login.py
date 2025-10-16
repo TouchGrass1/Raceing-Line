@@ -1,7 +1,7 @@
 import pygame as pg
 from pygame.locals import *
 from ComponentModule.components import Text, EntryBox
-from colours import colour_pallete
+from colours import colour_palette
 
 
 # Using blit to copy content from one surface to other
@@ -17,7 +17,7 @@ def main():
     # Fill background
     background = pg.Surface(screen.get_size())
     background = background.convert()
-    background.fill(colour_pallete['BG grey'])
+    background.fill(colour_palette['BG_GREY'].value)
 
     # Display some text
 
