@@ -76,6 +76,7 @@ class ProcessTrack:
 
         # Ensure tuple conversion when passing
         order = ProcessTrack.find_order(img_arr, start_blue, start_green, colours)
+
         return order
 
             
@@ -120,7 +121,7 @@ class ProcessTrack:
 
     def change_bg_colour(image, dark_mode):
         img_arr = pg.surfarray.pixels3d(image)
-        print(dark_mode, 'yipppy')
+        print('Dark mode?: ', dark_mode)
         if dark_mode:
             mask = np.all(img_arr == white, axis=2)
             img_arr[mask] = BG_GREY
@@ -161,7 +162,7 @@ class LoadTrack:
 
     def save_order(order, track_name):
         filename = f"{track_name}_order.npy"
-        np.save(os.path.join('orders', filename), order)
+        np.save(os.path.join('orders', filename), order, allow_pickle = True)
         print(f"Order saved as {filename}")
 
     def load_order(track_name):
@@ -232,10 +233,10 @@ def main():
 
     # Display some text
     font = pg.font.Font(None, 36)
-    text = font.render("Hello There", 1, (10, 10, 10))
-    textpos = text.get_rect()
-    textpos.centerx = background.get_rect().centerx
-    background.blit(text, textpos)
+    #text = font.render("Hello There", 1, (10, 10, 10))
+    #textpos = text.get_rect()
+    #textpos.centerx = background.get_rect().centerx
+    #background.blit(text, textpos)
 
     #iport_button = Button(100, 200, 200, 50, "button")
     track_name = 'monza' 
@@ -246,6 +247,7 @@ def main():
 
 
     print("Time taken to find order:", time.time() - start)
+
 
 
     # Event loop
