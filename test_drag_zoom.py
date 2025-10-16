@@ -32,7 +32,6 @@ def main():
     zoom = Zoom(track_image)
     drag = Drag()
     pos = (500, 400)
-    change = (0, 0)
     # Event loop
     while True:
         for event in pg.event.get():
