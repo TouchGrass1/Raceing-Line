@@ -1,0 +1,19 @@
+def resampleBoundary(order, spacing): #ensures that both boundaries have the same number of points and are evenly spaced
+  inner, outer = order #splits the order into inner and outer boundaries
+  x,y = inner[:,0], inner[:,1] #splits into x and y coords
+
+  distances = sqrt(diff(x)**2 + diff(y)**2) #distance formula
+  sum = cumsum(distances) #cumulative sum, total length
+
+  num_points = sum/spacing #spacing is the distance between each point
+
+  new_x = interpolate(target_distance, sum, x) #linear interpolation of x
+  new_y = ... #same as x
+
+def constructTriangles():
+    for i in range num_points:
+      corners = (inner, inner+1, outer, outer+1)
+      triangle1 = inner, outer, outer+1
+      triangle1 = inner, outer+1, inner+1 #creates a square, then divides it in half
+
+  
