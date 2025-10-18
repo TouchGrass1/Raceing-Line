@@ -45,30 +45,56 @@ class Subdivide:
         self.manager.run()
         self.track_order = self.manager.get_order()
         self.inner, self.outer = self.track_order
-        self.n = min(len(self.inner), len(self.outer)) - 1
+        
 
         self.triangles = []
-        self.width = 20 #triangle width
+        self.spacing = 2 #spacing between points
 
-    def triangles(self):
-        for i in range(self.n):
-            l1 = (self.inner[i][0], self.inner[i][1])
-            l2 = (self.inner[i + self.width][0], self.inner[i + self.width][1])
-            r1 = (self.outer[i][0], self.outer[i][0])
-            r2 = (self.outer[i + self.width][0], self.outer[i + self.width][1])
+    def resample(self, path):
+        path = np.array(path, dtype=float)
+        x, y = path[:, 0], path[:, 1]
+
+        # Compute distances between consecutive points
+        distances = np.sqrt(np.diff(x)**2 + np.diff(y)**2)
+        cumulative = np.concatenate(([0], np.cumsum(distances)))
+
+        total_length = cumulative[-1]
+        total_length = np.sum(np.sqrt(np.sum(np.diff(self.inner, axis=0)**2, axis=1))) #finds the difference between each point and sums them to get total length
+        self.num_points = int(total_length / self.spacing)
+        target_distances = np.linspace(0, total_length, self.num_points)
+
+        # Interpolate x and y at new positions
+        new_x = np.interp(target_distances, cumulative, x)
+        new_y = np.interp(target_distances, cumulative, y)
+
+        return np.stack((new_x, new_y), axis=1)
+    
+    def constructTriangles(self):
+        for i in range(self.num_points -1):
+            l1 = (self.inner_sample[i][0], self.inner_sample[i][1])
+            l2 = (self.inner_sample[i + 1][0], self.inner_sample[i + 1][1])
+            r1 = (self.outer_sample[i][0], self.outer_sample[i][1])
+            r2 = (self.outer_sample[i + 1][0], self.outer_sample[i + 1][1])
 
             # Two triangles per quad
             self.triangles.append([l1, r1, r2])
             self.triangles.append([l1, r2, l2])
 
         return np.array(self.triangles, dtype=np.int32)
+
+    def run(self):
+        self.inner_sample = self.resample(self.inner)
+        self.outer_sample = self.resample(self.outer)
+        return self.constructTriangles()
+    
+
     
 
 def main():
     """Temporary visual test for the boundary viewer."""
     start = time.time()
     pg.init()
-    screen = pg.display.set_mode((1920, 1080))
+    screen = pg.display.set_mode((900, 800))
     pg.display.set_caption("Track Boundary Viewer")
 
     background = pg.Surface(screen.get_size()).convert()
@@ -77,6 +103,7 @@ def main():
     track_name = "silverstone"
     viewer = ViewTrackBoundary(track_name)
     boundary_surface = viewer.view_track_boundary()
+    triangles = Subdivide(track_name).run()
     
 
     print("Boundary generated in:", round(time.time() - start, 2), "seconds")
@@ -88,7 +115,9 @@ def main():
                 running = False
 
         screen.blit(background, (0, 0))
-        screen.blit(boundary_surface, (500, 300))
+        screen.blit(boundary_surface, (0, 0))
+        for i in range(1, len(triangles) - 1):
+            pg.draw.polygon(screen, (255,0,0), triangles[i], 2)
         pg.display.flip()
 
     pg.quit()
