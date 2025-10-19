@@ -16,4 +16,25 @@ def constructTriangles():
       triangle1 = inner, outer, outer+1
       triangle1 = inner, outer+1, inner+1 #creates a square, then divides it in half
 
+def randomPath(): #generates a random path through the track, checks that each point on the path is within triangle
+  for triangle in triangles:
+    nodes.append(gene())
+
+def gene(): defines a possible gene
+  # a gene is any possible point in each triangle
+  allele =  # a specific gene
+
+def boundary(): # validation to ensure each interpolated point of the track is within the bounds
+  for triangle in triangles: #each triangle is an array of 3 pixel coordinates
+    p1, p2, p3 = triangle
+    m1, m2, ,m3 = diff(y)/diff(x) #gradients of the 3 lines
+    l1, l2, l3 = m(x - x1) + y1 #lines of triangle y - y1 = m(x - x1)
+    
+
+def boundaryPool(): #possible options within the triangle
+  # to save time looking at all the points in the screen and check if its above l1, and bellow l2 ect, I will generate a square around the triangle to limit the search space
+  xMax = max(x1, x2, x3)
+  xMin = min(...)
+  yMax = ...
+  yMin = ...
   
