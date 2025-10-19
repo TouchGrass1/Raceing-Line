@@ -1,0 +1,15 @@
+Generates A 2d grid within the track to act as possible genes
+
+how it work: 
+  1) create a 'line' between each inner and outer points ( should line up now that is is resampled)
+  2) split the 'line' evenly into x number of points
+
+
+def buildMesh():
+  lateral_divs = 10
+  for i in range(number of points in resmpled order):
+    inner_pt = inner_sample[i]
+    outer_pt = outer_sample[i]
+    for j, t in enumerate(linearlySpace(0,1), lateral_divs): #
+        # Linear interpolation between inner and outer
+        mesh[i, j] = inner_pt * (1 - t) + outer_pt * t
