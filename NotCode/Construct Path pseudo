@@ -16,6 +16,21 @@ def constructTriangles():
       triangle1 = inner, outer, outer+1
       triangle1 = inner, outer+1, inner+1 #creates a square, then divides it in half
 
+def resample():
+  x, y = x,y of inner/outer
+  distance = (x^2 + y^2)^0.5
+  total_length = cumulative sum(distances)
+  num_points = total_length/spacing
+  target_distance = linearspace(total_length, num_points)
+  new_x = interpolation(target_distance, total_length, x)
+  new_y = same as x...
+  return (new_x, new_y)
+
+def constructMesh():
+  for i in range(len(inner_sample)):
+    for j in range(num_of_subdivisions)
+      mesh.append(inner_sample[i], outer_sample[i], interpolate(10*j)) # interpolates a line between 2 corresponding lines
+
 def randomPath(): #generates a random path through the track, checks that each point on the path is within triangle
   for triangle in triangles:
     nodes.append(gene())
