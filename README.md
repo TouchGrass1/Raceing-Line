@@ -29,3 +29,7 @@ Phase 7 - draw race line, colour graded for speed
 
 other ideas?
 use mouse wheel to control sliders when u hover over them
+
+USEFULL LINKS:
+https://math.stackexchange.com/questions/3276910/cubic-b%C3%A9zier-radius-of-curvature-calculation
+
