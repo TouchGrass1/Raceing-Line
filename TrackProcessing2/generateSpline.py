@@ -1,12 +1,13 @@
 import cv2
 import numpy as np
+import random
 import matplotlib.pyplot as plt
 
 from skimage.util import invert
 from scipy.interpolate import CubicSpline
 from skimage.morphology import skeletonize
 
-from geomdl import BSpline
+from geomdl import BSpline, utilities
 from geomdl.visualization import VisMPL
 
 
@@ -132,10 +133,35 @@ def generate_mesh(curve, properties, real_properties):
     mesh_res = 10 #num of points in each row
     mesh = []
     for i, (curve_pt, normal_vec) in enumerate(zip(curve, normals)):
-        mesh_row = np.linspace(-max_offset_distance//2, max_offset_distance//2, mesh_res)
-        mesh_row_pts = curve_pt + np.outer(mesh_row, normal_vec) #outer product of mesh_row and normal_vev
-        mesh.append(mesh_row_pts)
+        if i %20 == 0:
+            mesh_row = np.linspace(-max_offset_distance//2, max_offset_distance//2, mesh_res)
+            mesh_row_pts = curve_pt + np.outer(mesh_row, normal_vec) #outer product of mesh_row and normal_vev
+            mesh.append(mesh_row_pts)
     return np.array(mesh)
+
+def b_spline(pts):
+    curve = BSpline.Curve()
+
+    # Set degree
+    curve.degree = 15
+
+    # Set control points
+    curve.ctrlpts = pts.tolist()
+
+    # Auto-generate a knot vector
+    curve.knotvector = utilities.generate_knot_vector(curve.degree, len(curve.ctrlpts))
+    curve.sample_size = 5000
+    curve.evaluate()
+    return np.array(curve.evalpts)
+
+def random_points(mesh):
+    rand_pts = []
+    for row in mesh:
+        pt = random.choice(row)
+        rand_pts.append(pt)
+    return np.array(rand_pts)
+
+
 
 def plot_boundaries(mesh, curve):
     left_boundary = mesh[:,0,:]
@@ -159,7 +185,6 @@ def plot_mesh(mesh):
 
     plt.axis('equal')
     plt.show()
-
 
 def plot_skeleton(pts, binary):
     num_pts = len(pts)
@@ -231,15 +256,21 @@ def main():
     approx = resample_points(skeleton, binary)
 
 
-    curve = catmull_rom_spline(approx)
+    cemter_line = catmull_rom_spline(approx)
 
-    mesh = generate_mesh(curve, spline_properties(curve), real_properties[track_name])
+    mesh = generate_mesh(cemter_line, spline_properties(cemter_line), real_properties[track_name])
+
+    random_pts = random_points(mesh)
+
+    rand_bsp = b_spline(random_pts)
+
 
     #plot_skeleton(points, binary)
     #plot_approx(approx, binary)
-    #plot_spline(curve, approx, img_arr)
-    plot_boundaries(mesh, curve)
-    plot_mesh(mesh)
+    #plot_spline(cemter_line, approx, img_arr)
+    plot_spline(rand_bsp, random_pts, img_arr)
+    #plot_boundaries(mesh, cemter_line)
+    #plot_mesh(mesh)
 
 
 if __name__ == "__main__":
