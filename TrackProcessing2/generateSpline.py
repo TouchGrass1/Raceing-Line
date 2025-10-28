@@ -134,7 +134,7 @@ def generate_mesh(curve, properties, real_properties):
     mesh = []
     for i, (curve_pt, normal_vec) in enumerate(zip(curve, normals)):
         if i %20 == 0:
-            mesh_row = np.linspace(-max_offset_distance//2, max_offset_distance//2, mesh_res)
+            mesh_row = np.linspace(-max_offset_distance/2, max_offset_distance/2, mesh_res)
             mesh_row_pts = curve_pt + np.outer(mesh_row, normal_vec) #outer product of mesh_row and normal_vev
             mesh.append(mesh_row_pts)
     return np.array(mesh)
@@ -143,7 +143,7 @@ def b_spline(pts):
     curve = BSpline.Curve()
 
     # Set degree
-    curve.degree = 15
+    curve.degree = 3
 
     # Set control points
     curve.ctrlpts = pts.tolist()
@@ -182,9 +182,25 @@ def plot_mesh(mesh):
 
     plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
     plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
+    
 
     plt.axis('equal')
     plt.show()
+
+def plot_everything(mesh, center_line, approx):
+    left_boundary = mesh[:,0,:]
+    right_boundary = mesh[:,-1,:]
+    for row in mesh:
+        plt.plot(row[:,0], row[:,1], 'k-')
+
+    plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
+    plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
+    plt.plot(center_line[:,0], center_line[:,1], 'b-', label='Center line')
+    plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
+
+    plt.axis('equal')
+    plt.show()
+
 
 def plot_skeleton(pts, binary):
     num_pts = len(pts)
@@ -256,9 +272,9 @@ def main():
     approx = resample_points(skeleton, binary)
 
 
-    cemter_line = catmull_rom_spline(approx)
+    center_line = catmull_rom_spline(approx)
 
-    mesh = generate_mesh(cemter_line, spline_properties(cemter_line), real_properties[track_name])
+    mesh = generate_mesh(center_line, spline_properties(center_line), real_properties[track_name])
 
     random_pts = random_points(mesh)
 
@@ -268,9 +284,10 @@ def main():
     #plot_skeleton(points, binary)
     #plot_approx(approx, binary)
     #plot_spline(cemter_line, approx, img_arr)
-    plot_spline(rand_bsp, random_pts, img_arr)
+    #plot_spline(rand_bsp, random_pts, img_arr)
     #plot_boundaries(mesh, cemter_line)
     #plot_mesh(mesh)
+    plot_everything(mesh, center_line, approx)
 
 
 if __name__ == "__main__":
