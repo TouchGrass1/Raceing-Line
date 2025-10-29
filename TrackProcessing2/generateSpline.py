@@ -1,15 +1,12 @@
 import cv2
 import numpy as np
 import random
-import matplotlib.pyplot as plt
 
-from skimage.util import invert
-from scipy.interpolate import CubicSpline
+import matplotlib.pyplot as plt
+from matplotlib.collections import LineCollection
+
 from skimage.morphology import skeletonize
 from scipy import interpolate
-
-from geomdl import BSpline, utilities
-from geomdl.visualization import VisMPL
 
 
 from pathlib import Path
@@ -22,17 +19,13 @@ def generate_centerLine(img_arr):
     
     skeleton = skeletonize(binary) #returns a 2D boolean array (True = track skeleton, False = background)
 
-    y, x = np.nonzero(skeleton)  # get pixel coordinates of skeleton
-    points = np.column_stack((x, y)).astype(np.int32)
-    return points, skeleton
-
-def resample_points(skeleton, binary):
-
     contours, _ = cv2.findContours(skeleton.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    largest = max(contours, key=cv2.contourArea)
+    points = max(contours, key=cv2.contourArea)
+    return points
 
-    epsilon = 0.0004 * cv2.arcLength(largest, True) ###################### experiment with the multiplier value, 0.0004 ==> num of points = 93, 0.0003 ==> 113, 0.0005 ==> 83
-    poly = cv2.approxPolyDP(largest, epsilon, False)
+def resample_points(skeleton_points):
+    epsilon = 0.0005 * cv2.arcLength(skeleton_points, True) ###################### experiment with the multiplier value, 0.0004 ==> num of points = 88, 0.0003 ==> 112, 0.0005 ==> 81
+    poly = cv2.approxPolyDP(skeleton_points, epsilon, True)
     print('number of sampled points: ',len(poly))
     poly = poly.reshape(-1, 2)
 
@@ -124,12 +117,10 @@ def spline_properties(curve):
         'length': total_length
         }
     
-def generate_mesh(curve, properties, real_properties, mesh_res):
-     #mesh res --> num of rows between each control point
-    max_offset_distance = (properties['length'] * real_properties['real_track_width']) / real_properties['real_track_length']
-    offsets = np.linspace(-max_offset_distance/2, max_offset_distance/2, mesh_res)
+def generate_mesh(curve, track_width, mesh_res, num_points_across, normals):
+    
+    offsets = np.linspace(-track_width/2, track_width/2, num_points_across)
 
-    normals = properties['normal']
     #normalise normals
     norms = np.linalg.norm(normals, axis=1)
     norms[norms == 0] = 1.0 #avoid 0 div
@@ -146,7 +137,7 @@ def generate_mesh(curve, properties, real_properties, mesh_res):
 def b_spline(pts, sample_size):
     x = pts[:,0]
     y = pts[:,1]
-    tck, u = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree, u = value for which b-splie is at each point properties
+    tck, u = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree, u = value for which b-spline is at each point properties
     u_fine = np.linspace(0, 1, sample_size)
     x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
     dx, dy = interpolate.splev(u_fine, tck, der=1)
@@ -155,11 +146,18 @@ def b_spline(pts, sample_size):
     return np.column_stack([x_fine, y_fine]), curvature
 
 
-def random_points(mesh):
+def random_points(mesh, num_pts_across, rangepercent):
     rand_pts = []
-    for row in mesh:
-        pt = random.choice(row)
+    random_number_old = random.randint(0, num_pts_across-1)
+    rangeVal = rangepercent*num_pts_across
+
+    for i in range(len(mesh)):
+        start = max(0, int(random_number_old - rangeVal))
+        end = min(len(mesh[i]) -1,int(random_number_old + rangeVal)) #ensure not out of range
+        random_number_new = random.randint(start, end)
+        pt = mesh[i][random_number_new]
         rand_pts.append(pt)
+        random_number_old = random_number_new
     return np.array(rand_pts)
 
 
@@ -175,7 +173,7 @@ def plot_boundaries(mesh, curve):
     plt.legend()
     plt.show()
 
-def plot_mesh(mesh):
+def plot_mesh(mesh, img_arr):
     left_boundary = mesh[:,0,:]
     right_boundary = mesh[:,-1,:]
     for row in mesh:
@@ -184,11 +182,11 @@ def plot_mesh(mesh):
     plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
     plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
     
-
+    plt.imshow(img_arr, cmap='gray')
     plt.axis('equal')
     plt.show()
 
-def plot_everything(mesh, center_line, approx):
+def plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr):
     left_boundary = mesh[:,0,:]
     right_boundary = mesh[:,-1,:]
     for row in mesh:
@@ -197,7 +195,10 @@ def plot_everything(mesh, center_line, approx):
     plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
     plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
     plt.plot(center_line[:,0], center_line[:,1], 'b-', label='Center line')
-    plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
+    #plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
+    plt.imshow(img_arr, cmap='gray')
+    plt.plot(random_pts[:,0], random_pts[:,1], 'go-', label='random Points')
+    plt.plot(rand_bsp[:,0], rand_bsp[:,1], 'p-', label='b-spline')
 
     plt.axis('equal')
     plt.show()
@@ -232,6 +233,45 @@ def plot_spline(curve, approx, img_arr):
     plt.axis('equal')
     plt.show()
 
+def plot_bspline(b_spline, controlPoints, mesh=None, curvature=None, cmap='plasma'):
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    left_boundary = mesh[:,0,:]
+    right_boundary = mesh[:,-1,:]
+
+    plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
+    plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
+    # ----- curvature-based coloring -----
+
+    # Ensure curvature has same length as spline
+    curvature = np.asarray(curvature)
+    curvature = np.abs(curvature)  # magnitude only
+    curv_min, curv_max = np.min(curvature), np.max(curvature)
+    curvature_norm = (curvature - curv_min) / (curv_max - curv_min + 1e-12)
+
+    # Create colored line segments
+    points = b_spline.reshape(-1, 1, 2)
+    segments = np.concatenate([points[:-1], points[1:]], axis=1)
+
+    lc = LineCollection(segments, cmap=cmap, norm=plt.Normalize(0, 1))
+    lc.set_array(curvature_norm)
+    lc.set_linewidth(2.5)
+    ax.add_collection(lc)
+
+    # Add colorbar
+    cbar = plt.colorbar(lc, ax=ax, fraction=0.03, pad=0.04)
+    cbar.set_label("Curvature (normalized)")
+
+
+
+
+    # ----- formatting -----
+    ax.set_aspect('equal', 'box')
+    ax.set_title("B-spline Racing Line with Curvature Heatmap")
+    ax.legend()
+    ax.grid(True, linestyle=':', alpha=0.5)
+
+    plt.show()
 
 def plot_approx(approx, binary):
 
@@ -248,6 +288,7 @@ def plot_img(img_arr):
     plt.show()
 
 def main():
+    #loading image
     _PROJECT_ROOT = Path(__file__).resolve().parents[1]
     track_list = ["monza", "silverstone", "qatar"]
     track_name = track_list[1]
@@ -257,46 +298,68 @@ def main():
     ORDERS_DIR.mkdir(exist_ok=True)
     filepath = ASSETS_DIR / f"{track_name}.png"
 
-    real_properties = {
-        'silverstone': {
-            'real_track_length': 5891, #meters
-            'real_track_width': 12 #meters
-        },
-        'monza': {
-            'real_track_length': 5793,
-            'real_track_width': 12
-        },
-        'qatar': {
-            'real_track_length': 5419,
-            'real_track_width': 12
-        }
-    }
     img = Image.open(filepath).convert('L') # ensure grayscale
     img_arr = np.asarray(img)
 
     binary = img_arr < 128  # invert image
 
-    points, skeleton = generate_centerLine(img_arr)
-    print(cv2.arcLength(points, False))
-    approx = resample_points(skeleton, binary)
+    #variables
+    real_properties = {
+    'silverstone': {
+        'real_track_length': 5891, #meters
+        'real_track_width': 12 #meters
+    },
+    'monza': {
+        'real_track_length': 5793,
+        'real_track_width': 12
+    },
+    'qatar': {
+        'real_track_length': 5419,
+        'real_track_width': 12
+    }
+}
+
+    num_points_across= 50
+    mesh_res = 1 #the bigger the number the lower the resolution
+    
+    rangepercent = 0.05 #the lower the number the lower the range --> less spiky curve between 0,1
+
+    #running functions
+
+    skeleton_points_3d = generate_centerLine(img_arr)
+    skeleton_points = skeleton_points_3d[0] #this is a more useful version
+    approx = resample_points(skeleton_points_3d) #cv2 requires it in this format for contours
 
 
     center_line = catmull_rom_spline(approx)
     center_line_properties = spline_properties(center_line)
-    mesh = generate_mesh(center_line, center_line_properties, real_properties[track_name], mesh_res= 2) #the lower the number for mesh res the higher the resolution
 
-    random_pts = random_points(mesh)
+    convertion = center_line_properties['length'] / real_properties[track_name]['real_track_length'] #num of pixels per meter
+    track_width_pixels = convertion * real_properties[track_name]['real_track_width']
+    print('num of pixels per meter: ', convertion)
+
+    
+    mesh = generate_mesh(center_line, track_width_pixels, mesh_res, num_points_across, center_line_properties['normal']) 
+
+    
+    random_pts = random_points(mesh, num_points_across, rangepercent)
 
     rand_bsp, curvature = b_spline(random_pts, sample_size= 5000)
+    radius = 1/abs(curvature)
+
+    print('cv2s arclength feature vs arc-length params:', cv2.arcLength(center_line.astype(np.float32).reshape(-1,1,2), True), 'vs', center_line_properties['length'])
+
+    
 
     #plot_img(img_arr)
     #plot_skeleton(points, binary)
     #plot_approx(approx, binary)
-    #plot_spline(center_line, approx, img_arr)
-    plot_spline(rand_bsp, random_pts, img_arr)
+    plot_spline(center_line, approx, img_arr)
+    #plot_spline(rand_bsp, random_pts, img_arr)
+    #plot_bspline(rand_bsp, random_pts, mesh, curvature)
     #plot_boundaries(mesh, center_line)
-    #plot_mesh(mesh)
-    #plot_everything(mesh, center_line, approx)
+    #plot_mesh(mesh, img_arr)
+    #plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr)
 
 
 if __name__ == "__main__":
