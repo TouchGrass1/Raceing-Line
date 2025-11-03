@@ -287,11 +287,20 @@ def plot_img(img_arr):
     plt.imshow(img_arr, cmap='gray')
     plt.show()
 
-def main():
+def return_Img_Arr(track_name):
+    _PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+    ASSETS_DIR = _PROJECT_ROOT / "assets" / "tracks"
+    ORDERS_DIR = _PROJECT_ROOT / "orders" / track_name
+    ORDERS_DIR.mkdir(exist_ok=True)
+    filepath = ASSETS_DIR / f"{track_name}.png"
+
+    img = Image.open(filepath).convert('L') # ensure grayscale
+    return np.asarray(img)
+
+def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangepercent=0.05):
     #loading image
     _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-    track_list = ["monza", "silverstone", "qatar"]
-    track_name = track_list[1]
 
     ASSETS_DIR = _PROJECT_ROOT / "assets" / "tracks"
     ORDERS_DIR = _PROJECT_ROOT / "orders" / track_name
@@ -304,25 +313,12 @@ def main():
     binary = img_arr < 128  # invert image
 
     #variables
-    real_properties = {
-    'silverstone': {
-        'real_track_length': 5891, #meters
-        'real_track_width': 12 #meters
-    },
-    'monza': {
-        'real_track_length': 5793,
-        'real_track_width': 12
-    },
-    'qatar': {
-        'real_track_length': 5419,
-        'real_track_width': 12
-    }
-}
 
-    num_points_across= 50
-    mesh_res = 1 #the bigger the number the lower the resolution
+
+    #num_points_across= 50
+    #mesh_res = 1 #the bigger the number the lower the resolution
     
-    rangepercent = 0.05 #the lower the number the lower the range --> less spiky curve between 0,1
+    #rangepercent = 0.05 #the lower the number the lower the range --> less spiky curve between 0,1
 
     #running functions
 
@@ -342,25 +338,41 @@ def main():
     mesh = generate_mesh(center_line, track_width_pixels, mesh_res, num_points_across, center_line_properties['normal']) 
 
     
-    random_pts = random_points(mesh, num_points_across, rangepercent)
+    #random_pts = random_points(mesh, num_points_across, rangepercent)
 
-    rand_bsp, curvature = b_spline(random_pts, sample_size= 5000)
-    radius = 1/abs(curvature)
+    #rand_bsp, curvature = b_spline(random_pts, sample_size= 5000)
+    #radius = 1/abs(curvature)
 
-    print('cv2s arclength feature vs arc-length params:', cv2.arcLength(center_line.astype(np.float32).reshape(-1,1,2), True), 'vs', center_line_properties['length'])
+    #print('cv2s arclength feature vs arc-length params:', cv2.arcLength(center_line.astype(np.float32).reshape(-1,1,2), True), 'vs', center_line_properties['length'])
 
     
 
     #plot_img(img_arr)
     #plot_skeleton(points, binary)
     #plot_approx(approx, binary)
-    plot_spline(center_line, approx, img_arr)
+    #plot_spline(center_line, approx, img_arr)
     #plot_spline(rand_bsp, random_pts, img_arr)
     #plot_bspline(rand_bsp, random_pts, mesh, curvature)
     #plot_boundaries(mesh, center_line)
     #plot_mesh(mesh, img_arr)
     #plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr)
+    return approx, center_line, center_line_properties, mesh
+
 
 
 if __name__ == "__main__":
-    main()
+    real_properties = {
+    'silverstone': {
+        'real_track_length': 5891, #meters
+        'real_track_width': 12 #meters
+        },
+    'monza': {
+        'real_track_length': 5793,
+        'real_track_width': 12
+        },
+    'qatar': {
+        'real_track_length': 5419,
+        'real_track_width': 12
+        }
+    }
+    main('silverstone', real_properties)
