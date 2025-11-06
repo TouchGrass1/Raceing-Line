@@ -3,6 +3,7 @@ import pygame as pg
 import time
 from enum import Enum
 from pygame.locals import *
+from Physics import *
 
 #CONSTANTS
 class colour_palette(Enum):
@@ -31,72 +32,43 @@ real_properties = {
     }
 }
 
-#PYGAME STUFF
-pg.init()
-start_time = time.time()
 
-screen = pg.display.set_mode(flags=pg.FULLSCREEN)
-#screen = pg.display.set_mode((720,640))
-screen_shape = screen.get_size()
-pg.display.set_caption('Racing Lines')
 
-# Background surface (static)
-background = pg.Surface(screen.get_size())
-background = background.convert()
-
-background.fill(colour_palette['BG_GREY'].value)
-screen.blit(background, (0, 0))
+def uppdateVelocity(vel, mu, mass):
+    downforce = downforceEquation(vel)
+    maxLateralForce = maxLateralForceEquation(mu, mass, downforce)
+    lateralForce = lateralForceEquation(mass, velocity, radius)
+    if lateralForce > maxLateralForce:
+        
 
 
 
 
-#SPLINE STUFF
 
-track_list = ["monza", "silverstone", "qatar"]
-track_name = track_list[1]
+def main():
+    #SPLINE STUFF
 
-center_line_ctrpts, center_line, center_line_properties, mesh = generateSpline.main(track_name, real_properties)
+    track_list = ["monza", "silverstone", "qatar"]
+    track_name = track_list[1]
 
-random_pts = generateSpline.random_points(mesh, num_pts_across=50, rangepercent=0.1)
+    center_line_ctrpts, center_line, center_line_properties, mesh = generateSpline.main(track_name, real_properties)
 
-rand_bsp, curvature = generateSpline.b_spline(random_pts, sample_size= 5000)
-radius = 1/abs(curvature)
+    random_pts = generateSpline.random_points(mesh, num_pts_across=50, rangepercent=0.1)
 
-left_boundary = mesh[:,0,:]
-right_boundary = mesh[:,-1,:]
+    rand_bsp, curvature = generateSpline.b_spline(random_pts, sample_size= 5000)
+    radius = 1/abs(curvature)
 
-#CAR
-i = 0
+    left_boundary = mesh[:,0,:]
+    right_boundary = mesh[:,-1,:]
 
-
-pg.display.flip()
-run = True
-while run:
-    for event in pg.event.get():
-        if event.type == QUIT:
-            run = False
-        elif event.type == KEYDOWN and event.key == K_ESCAPE:
-            run = False
-        if event.type == MOUSEBUTTONDOWN:
-            print(pg.mouse.get_pos())
-    
-
-    #BASE
-    screen.blit(background, (0, 0))
-    pg.draw.lines(screen,colour_palette['ORANGE'].value, True, left_boundary)
-    pg.draw.lines(screen,colour_palette['ORANGE'].value, True, right_boundary)
-    pg.draw.lines(screen,colour_palette['RED'].value, True, center_line_ctrpts)
-    pg.draw.lines(screen,colour_palette['BLUE'].value, True, random_pts)
+    #CAR
+    i = 0
 
 
-    #car
-    pos = random_pts[i]
-    pg.draw.circle(screen, colour_palette['WHITE'].value, pos, 2)
-
-    time.sleep(0.1)
     pg.display.flip()
+    run = True
+    while run:
 
-    if i == len(random_pts) -1:
-        i = 0
-    else: i+=1
+
+
 
