@@ -23,10 +23,10 @@ class PhysicsFormulas:
     def lateralForceEquation(mass, velocity, radius):
         return (mass*(velocity**2))/radius
     def maxLateralForceEquation(mu, mass, downforce):
-        weight = mass*PhysicsConsts['g']*PhysicsConsts['ACCEL_CORNER_MAX']
+        weight = mass*PhysicsConsts['g'].value
         lateral_force = weight * mu
         return lateral_force + downforce
-    def tyreWearEquation(num_laps, start_mu, TYRE_LIFE, ):
+    def tyreWearEquation(num_laps, start_mu, TYRE_LIFE):
         return ((-start_mu * 2)/(10*TYRE_LIFE))*num_laps + start_mu
-    
-    def maxLateralVelocityEquation()
+    def forceToVelocity(force, mass, radius):
+        return ((force*radius)/mass)**0.5

@@ -138,7 +138,7 @@ def b_spline(pts, sample_size):
     x = pts[:,0]
     y = pts[:,1]
     tck, u = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree, u = value for which b-spline is at each point properties
-    u_fine = np.linspace(0, 1, sample_size)
+    u_fine = np.linspace(0, 1, sample_size) #number of points to have on the radius
     x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
     dx, dy = interpolate.splev(u_fine, tck, der=1)
     d2x, d2y = interpolate.splev(u_fine, tck, der=2)
@@ -226,14 +226,14 @@ def plot_skeleton(pts, binary):
     cv2.destroyAllWindows()
 
 def plot_spline(curve, approx, img_arr):
-    plt.imshow(img_arr, cmap='gray')
+    #plt.imshow(img_arr, cmap='gray')
     plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
     plt.plot(curve[:,0], curve[:,1], 'b-', label='Centripetal Catmull–Rom')
     plt.legend()
     plt.axis('equal')
     plt.show()
 
-def plot_bspline(b_spline, controlPoints, mesh=None, curvature=None, cmap='plasma'):
+def plot_bspline(b_spline, sampledpts, mesh=None, curvature=None, cmap='plasma'):
     fig, ax = plt.subplots(figsize=(8, 8))
 
     left_boundary = mesh[:,0,:]
@@ -241,6 +241,7 @@ def plot_bspline(b_spline, controlPoints, mesh=None, curvature=None, cmap='plasm
 
     plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
     plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
+
     # ----- curvature-based coloring -----
 
     # Ensure curvature has same length as spline
@@ -342,6 +343,8 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
     #rand_bsp, curvature = b_spline(random_pts, sample_size= 5000)
     #radius = 1/abs(curvature)
+    #print(repr(random_pts))
+ 
 
     #print('cv2s arclength feature vs arc-length params:', cv2.arcLength(center_line.astype(np.float32).reshape(-1,1,2), True), 'vs', center_line_properties['length'])
 
