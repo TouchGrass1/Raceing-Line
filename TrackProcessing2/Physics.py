@@ -33,4 +33,5 @@ class PhysicsFormulas:
     def forceToVelocity(force, mass, radius):
         return ((force*radius)/mass)**0.5
     def accelerationPowerEquation(speed, mass):
+        if speed == 0: return PhysicsConsts["ACCEL_MAX"].value
         return PhysicsConsts['POWER'].value/(speed*mass)

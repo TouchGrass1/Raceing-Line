@@ -9,36 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 
-#CONSTANTS
-class colour_palette(Enum):
-    WHITE = (242, 241, 242)
-    RED = (246, 32, 57)
-    BLACK = (17, 17, 17)
-    BLUE = (41, 82, 148)
-    BG_GREY = (2, 29, 33)
-    ORANGE = (255, 128, 0)
-    RED2 = (187, 57, 59)
-    LINE_GREY = (42, 45, 49)
-    SUBTLE_GREY = (37, 40, 44)
 
-real_properties = {
-'silverstone': {
-    'real_track_length': 5891, #meters
-    'real_track_width': 12 #meters
-    },
-'monza': {
-    'real_track_length': 5793,
-    'real_track_width': 12
-    },
-'qatar': {
-    'real_track_length': 5419,
-    'real_track_width': 12
-    },
-'90degturn': {
-    'real_track_length': 1000,
-    'real_track_width': 12
-    }
-}
 
 def findMaxVelocity(radius, mass):
    
@@ -69,7 +40,13 @@ def findVelocities(maxVelArr, mass):
 
     return vel
 
+def calculateTrackTime(vel, rand_bsp, pixels_per_meter):
+    x, y = rand_bsp[:, 0], rand_bsp[:, 1]
 
+    # Compute distances between consecutive points
+    distances = np.hypot(x, y)
+    t = np.concatenate(([0], np.cumsum(distances/vel)))
+    return t[-1]
         
 
 def plotVelocity(vel, maxVel, radius):
@@ -119,35 +96,19 @@ def plot_velocity_colored_line(spline_points, velocities, cmap='turbo'):
     plt.show()
 
 
-def main():
-
-
-    track_list = ["monza", "silverstone", "qatar", "90degturn"]
-    track_name = track_list[1]
-
-    center_line_ctrpts, center_line, center_line_properties, mesh = generateSpline.main(track_name, real_properties)
-
-    random_pts = generateSpline.random_points(mesh, num_pts_across=50, rangepercent=0.020, sample_size=500)
-    rand_bsp = generateSpline.catmull_rom_spline(random_pts)
-    props = generateSpline.spline_properties(rand_bsp)
-
-    pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
-
-    # compute radius (1/curvature), skip zero curvature to avoid div by zero
-    radius = [1 / abs(c) if abs(c) > 1e-6 else np.inf for c in props["curvature"]]
-
-    radius = np.array(radius) / pixels_per_meter
+def main(rand_bsp, radius, mass, pixels_per_meter):
 
 
 
-
-    mass = 700 #kg
     maxVelArr = findMaxVelocity(radius, mass)
     vel = findVelocities(maxVelArr, mass)
-    return random_pts, vel, rand_bsp
+    t  = calculateTrackTime(vel, rand_bsp, pixels_per_meter)
+    return vel, t
 
 
-#random_pts, vel, rand_bsp = main()
+#vel, rand_bsp, t = main()
+#print('time: ', t)
+
 #plotVelocity(vel, maxVelArr, mean_radius)
 #plot_velocity_colored_line(rand_bsp, vel)
 
