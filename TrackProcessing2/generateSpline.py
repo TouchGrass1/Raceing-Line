@@ -356,10 +356,10 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     #plot_img(img_arr)
     #plot_skeleton(skeleton_points, binary)
     #plot_approx(approx, binary)
-    plot_spline(center_line, approx, img_arr)
+    #plot_spline(center_line, approx, img_arr)
     #plot_spline(rand_bsp, random_pts, img_arr)
     #plot_bspline(rand_bsp, random_pts, mesh, curvature)
-    plot_boundaries(mesh, center_line)
+    #plot_boundaries(mesh, center_line)
     #plot_mesh(mesh, img_arr)
     #plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr)
     return approx, center_line, center_line_properties, mesh

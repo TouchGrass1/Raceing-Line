@@ -3,6 +3,7 @@ from enum import Enum
 class PhysicsConsts(Enum):
     TURNING_RADIUS = 5 #M
     VELOCITY_MAX = 380 #KPH
+    POWER = 750 #kW
     ACCEL_MIN = -24.5 #MS-2
     ACCEL_MAX = 10.7 #MS-2
     MASS_MIN = 878 #KG
@@ -16,6 +17,7 @@ class PhysicsConsts(Enum):
     TYRE_LIFE_SOFT = 20
     TYRE_LIFE_MEDIUM = 40
     TYRE_LIFE_HARD = 60
+    
 
 class PhysicsFormulas:
     def downforceEquation(x): #x = velocity
@@ -30,3 +32,5 @@ class PhysicsFormulas:
         return ((-start_mu * 2)/(10*TYRE_LIFE))*num_laps + start_mu
     def forceToVelocity(force, mass, radius):
         return ((force*radius)/mass)**0.5
+    def accelerationPowerEquation(speed, mass):
+        return PhysicsConsts['POWER'].value/(speed*mass)
