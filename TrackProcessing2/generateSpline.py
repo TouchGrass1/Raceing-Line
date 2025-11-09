@@ -1,12 +1,14 @@
 import cv2
 import numpy as np
 import random
+from math import ceil
 
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 
 from skimage.morphology import skeletonize
 from scipy import interpolate
+
 
 
 from pathlib import Path
@@ -33,12 +35,12 @@ def resample_points(skeleton_points):
 
 def catmull_rom_spline(points):
     ALPHA = 0.5
-    num_points = len(points) # number of control points 
+    
     sample_per_segments = 20
 
     points = np.array(points, dtype=float)
     points = np.vstack([points[-1], points, points[0], points[1]]) #ensure closed curve by adding the last point and the start and the first two points to the end
-
+    num_points = len(points) # number of control points 
     result = []
 
     def tj(ti, pi, pj):
@@ -46,7 +48,7 @@ def catmull_rom_spline(points):
         l = np.hypot(dx, dy)
         return ti + (l ** ALPHA)
 
-    for i in range(1, num_points): #since catmull rom needs 4 points to generate 1 segment so the 2 control points are ignored, also because we added points so we need to ignore them
+    for i in range(1, num_points-2): #since catmull rom needs 4 points to generate 1 segment so the 2 control points are ignored, also because we added points so we need to ignore them
         P0 = points[i - 1]
         P1 = points[i]
         P2 = points[i + 1]
@@ -71,7 +73,7 @@ def catmull_rom_spline(points):
         result.append(C)
 
     curve = np.vstack(result)
-    curve = np.vstack([curve, curve[0]]) #ensure return to start
+    curve = np.vstack([curve, curve[0]]) 
     return curve
 
 def spline_properties(curve):
@@ -146,12 +148,13 @@ def b_spline(pts, sample_size):
     return np.column_stack([x_fine, y_fine]), curvature
 
 
-def random_points(mesh, num_pts_across, rangepercent):
+def random_points(mesh, num_pts_across, rangepercent, sample_size):
     rand_pts = []
     random_number_old = random.randint(0, num_pts_across-1)
     rangeVal = rangepercent*num_pts_across
+    step = ceil(len(mesh) / sample_size)
 
-    for i in range(len(mesh)):
+    for i in range(0, len(mesh), step):
         start = max(0, int(random_number_old - rangeVal))
         end = min(len(mesh[i]) -1,int(random_number_old + rangeVal)) #ensure not out of range
         random_number_new = random.randint(start, end)
@@ -186,7 +189,7 @@ def plot_mesh(mesh, img_arr):
     plt.axis('equal')
     plt.show()
 
-def plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr):
+def plot_everything(mesh, center_line, approx, rand_bsp, random_pts):
     left_boundary = mesh[:,0,:]
     right_boundary = mesh[:,-1,:]
     for row in mesh:
@@ -195,8 +198,8 @@ def plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr):
     plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
     plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
     plt.plot(center_line[:,0], center_line[:,1], 'b-', label='Center line')
-    #plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
-    plt.imshow(img_arr, cmap='gray')
+    plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
+    #plt.imshow(img_arr, cmap='gray')
     plt.plot(random_pts[:,0], random_pts[:,1], 'go-', label='random Points')
     plt.plot(rand_bsp[:,0], rand_bsp[:,1], 'p-', label='b-spline')
 
@@ -208,7 +211,7 @@ def plot_skeleton(pts, binary):
     num_pts = len(pts)
     # simple gradient: blue → red
     colors = np.zeros((num_pts, 3), dtype=np.uint8)
-    for i in range(num_pts):
+    for i in range(1, num_pts):
         t = i / (num_pts - 1)
         colors[i] = [
             int(255 * (1 - t)),  # blue decreases
@@ -341,7 +344,7 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     
     #random_pts = random_points(mesh, num_points_across, rangepercent)
 
-    #rand_bsp, curvature = b_spline(random_pts, sample_size= 5000)
+    #rand_bsp, curvature = b_spline(random_pts, sample_size= 1000)
     #radius = 1/abs(curvature)
     #print(repr(random_pts))
  
@@ -351,12 +354,12 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     
 
     #plot_img(img_arr)
-    #plot_skeleton(points, binary)
+    #plot_skeleton(skeleton_points, binary)
     #plot_approx(approx, binary)
-    #plot_spline(center_line, approx, img_arr)
+    plot_spline(center_line, approx, img_arr)
     #plot_spline(rand_bsp, random_pts, img_arr)
     #plot_bspline(rand_bsp, random_pts, mesh, curvature)
-    #plot_boundaries(mesh, center_line)
+    plot_boundaries(mesh, center_line)
     #plot_mesh(mesh, img_arr)
     #plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr)
     return approx, center_line, center_line_properties, mesh
@@ -367,7 +370,7 @@ if __name__ == "__main__":
     real_properties = {
     'silverstone': {
         'real_track_length': 5891, #meters
-        'real_track_width': 12 #meters
+        'real_track_width': 20 #meters
         },
     'monza': {
         'real_track_length': 5793,

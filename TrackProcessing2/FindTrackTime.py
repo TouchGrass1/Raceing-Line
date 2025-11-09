@@ -32,6 +32,10 @@ real_properties = {
 'qatar': {
     'real_track_length': 5419,
     'real_track_width': 12
+    },
+'90degturn': {
+    'real_track_length': 1000,
+    'real_track_width': 12
     }
 }
 
@@ -80,15 +84,17 @@ def main():
     #SPLINE STUFF
     return 1
 
-track_list = ["monza", "silverstone", "qatar"]
+track_list = ["monza", "silverstone", "qatar", "90degturn"]
 track_name = track_list[1]
 
 center_line_ctrpts, center_line, center_line_properties, mesh = generateSpline.main(track_name, real_properties)
 
-random_pts = generateSpline.random_points(mesh, num_pts_across=50, rangepercent=0.000)
+random_pts = generateSpline.random_points(mesh, num_pts_across=50, rangepercent=0.020, sample_size= 500)
 
-rand_bsp, curvature = generateSpline.b_spline(random_pts, sample_size= 7000)
-radius = 1/abs(curvature)
+
+rand_bsp = generateSpline.catmull_rom_spline(random_pts)
+props = generateSpline.spline_properties(rand_bsp)
+radius = 1/abs(props["curvature"])
 pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
 radius = radius / pixels_per_meter #conert to meters
 
@@ -98,7 +104,9 @@ vel = findVelocities(maxVelArr)
 
 
 plotVelocity(vel, maxVelArr, radius)
-generateSpline.plot_spline(rand_bsp, random_pts, None)
+#generateSpline.plot_spline(rand_bsp, random_pts, None)
+generateSpline.plot_bspline(rand_bsp, random_pts, mesh, props["curvature"])
+generateSpline.plot_everything(mesh, center_line, center_line_ctrpts, rand_bsp, random_pts)
 
 run = True
 #while run:
