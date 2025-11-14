@@ -1,4 +1,5 @@
 from enum import Enum
+import numpy as np
 
 class PhysicsConsts(Enum):
     TURNING_RADIUS = 5 #M
@@ -28,6 +29,10 @@ class PhysicsFormulas:
         weight = mass*PhysicsConsts['g'].value
         lateral_force = weight * mu
         return lateral_force + downforce
+    def maxLateralAccelerationEquation(force, mass):
+        f2 = PhysicsConsts['ACCEL_CORNER_MAX'].value*PhysicsConsts['g'].value*mass
+        if force > f2: return f2  
+        return force
     def tyreWearEquation(num_laps, start_mu, TYRE_LIFE):
         return ((-start_mu * 2)/(10*TYRE_LIFE))*num_laps + start_mu
     def forceToVelocity(force, mass, radius):

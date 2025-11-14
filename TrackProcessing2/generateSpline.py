@@ -228,7 +228,7 @@ def plot_skeleton(pts, binary):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-def plot_spline(curve, approx, img_arr):
+def plot_spline(curve, approx):
     #plt.imshow(img_arr, cmap='gray')
     plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
     plt.plot(curve[:,0], curve[:,1], 'b-', label='Centripetal Catmull–Rom')

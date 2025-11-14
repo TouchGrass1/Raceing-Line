@@ -16,6 +16,7 @@ def findMaxVelocity(radius, mass):
     downforce = 2000 #N
     mu = 1.5
     maxLateralForceEquation = PhysicsFormulas.maxLateralForceEquation(mu, mass, downforce)
+    maxLateralForceEquation = PhysicsFormulas.maxLateralAccelerationEquation(maxLateralForceEquation, mass)
     maxVel = np.sqrt((maxLateralForceEquation*radius) / mass)
     return maxVel
 
@@ -44,8 +45,9 @@ def calculateTrackTime(vel, rand_bsp, pixels_per_meter):
     x, y = rand_bsp[:, 0], rand_bsp[:, 1]
 
     # Compute distances between consecutive points
-    distances = np.hypot(x, y)
-    t = np.concatenate(([0], np.cumsum(distances/vel)))
+    distances = np.hypot(np.diff(x), np.diff(y))
+    distances = distances/pixels_per_meter
+    t = np.concatenate(([0], np.cumsum(distances/vel[:len(vel)-1])))
     return t[-1]
         
 

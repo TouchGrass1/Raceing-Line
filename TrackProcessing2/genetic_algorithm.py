@@ -6,8 +6,10 @@ import random
 import time
 import os
 from FindTrackTime import main as find_track_time
+from FindTrackTime import plot_velocity_colored_line
 import generateSpline
 from enum import Enum
+import matplotlib.pyplot as plt
 
 
 
@@ -42,7 +44,7 @@ real_properties = {
     }
 }
 
-def initialize_population(pop_size = 100):
+def initialize_population(pop_size):
     population = []
     for _ in range(pop_size):
         rand_bsp, radius = create_random_bsp(mesh, track_name, center_line_properties)
@@ -66,7 +68,7 @@ def select_parents(population):
 def crossover(parent1, parent2):
     split = random.uniform(0.25, 0.75)
     idx = int(len(parent1) * split)
-    child = np.vstack([parent1[:idx], parent2[idx:]])
+    child = np.vstack([parent1[:idx], parent2[idx:], parent1[0]])
     return child
 
 def mutate(individual, mutation_rate, mutation_strength):
@@ -91,7 +93,10 @@ def create_random_bsp(mesh, track_name, center_line_properties):
     radius = np.array(radius) / pixels_per_meter
     return rand_bsp, radius
 
-
+def plot_just_spline(spline):
+    plt.plot(spline[:,0], spline[:,1], 'b-')
+    plt.axis('equal')
+    plt.show()
 
 
     
@@ -115,7 +120,7 @@ def main():
     mut_rate = 0.1
     mut_strength = 0.05
     
-    generations = 200
+    generations = 50
 
     for generation in range(generations):
         population = evaluate_population(population)
@@ -130,13 +135,21 @@ def main():
             radius = [1 / abs(c) if abs(c) > 1e-6 else np.inf for c in props["curvature"]]
             radius = np.array(radius) / pixels_per_meter
             vel, t = find_track_time(child, radius, mass, pixels_per_meter)
-            new_population.append((child, t))
+            new_population.append((child, t, vel))
         
         population = new_population
 
         best_time = min([p[1] for p in population])
         print(f"Gen {generation}: Best time = {best_time:.3f}s")
+
     print('time taken: ', time.time() - start_time)
+    best = min(population, key=lambda x: x[1])  # returns tuple (spline, time, velocity)
+    best_spline = best[0]
+    best_time = best[1]
+    best_vels = best[2]
+
+    plot_just_spline(best_spline)
+    plot_velocity_colored_line(best_spline, best_vels)
 
 
 if __name__ == '__main__': main()
