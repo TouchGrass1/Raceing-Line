@@ -3,7 +3,7 @@ from pygame.locals import *
 from ComponentModule.components import *
 from colours import colour_palette
 import time
-from set_up_track import OrderOfOperations
+#from set_up_track import OrderOfOperations
 import numpy as np
 from ComponentModule.zoom import *
 from ComponentModule.clickNdrag import *
@@ -122,9 +122,9 @@ def main():
     track_name = "Silverstone"
     track_dropdown = top_panel.track_name_display(track_name, track_list)
 
-    order_of_operations = OrderOfOperations(track_name, dark_mode=True)
-    order_of_operations.run()
-    track_image = order_of_operations.get_track_image()
+    #order_of_operations = OrderOfOperations(track_name, dark_mode=True)
+    #order_of_operations.run()
+    #track_image = order_of_operations.get_track_image()
 
     # Clipping rectangle for track image
     x = int(0.1 * screen_shape[0])
@@ -133,14 +133,14 @@ def main():
     h = screen_shape[1] - y
     DIVIDER_THICKNESS = 3
     clip_rect = pg.Rect(x + DIVIDER_THICKNESS, y + DIVIDER_THICKNESS, w - DIVIDER_THICKNESS, h - DIVIDER_THICKNESS)
-    track_image_rect = track_image.get_rect()
-    track_image_rect.center = (x+w//2, y+h//2)
+    #track_image_rect = track_image.get_rect()
+    #track_image_rect.center = (x+w//2, y+h//2)
 
     # Dividers
     dividers = Dividers(screen_shape)
 
     #Drag and Zoom
-    zoom = Zoom(track_image)
+    #zoom = Zoom(track_image)
     drag = Drag()
 
 
@@ -155,8 +155,8 @@ def main():
             if event.type == MOUSEBUTTONDOWN:
                 print(pg.mouse.get_pos())
 
-            if event.type == MOUSEWHEEL:
-                zoom.handle_event(event)
+            #if event.type == MOUSEWHEEL:
+                #zoom.handle_event(event)
 
             left_panel.handle_event(event)
             track_dropdown.handle_event(event)
@@ -180,25 +180,25 @@ def main():
         top_panel.weather_display(screen, "Sunny")
 
         # track dropdown
-        if track_name != track_dropdown.get_track():
-            order_of_operations = OrderOfOperations(track_name, dark_mode=True)
-            order_of_operations.run()
-            track_image = order_of_operations.get_track_image()
-            if track_image is not None:
-                track_name = track_dropdown.get_track()
-                track_image_rect = track_image.get_rect()
-                track_image_rect.center = (x+w//2, y+h//2)
-                zoom = Zoom(track_image)
-        track_dropdown.draw(screen, font)
+        # if track_name != track_dropdown.get_track():
+        #     order_of_operations = OrderOfOperations(track_name, dark_mode=True)
+        #     order_of_operations.run()
+        #     track_image = order_of_operations.get_track_image()
+        #     if track_image is not None:
+        #         track_name = track_dropdown.get_track()
+        #         track_image_rect = track_image.get_rect()
+        #         track_image_rect.center = (x+w//2, y+h//2)
+        #         zoom = Zoom(track_image)
+        # track_dropdown.draw(screen, font)
 
 
         screen.set_clip(clip_rect)
 
         # draw track image
-        img = zoom.get_image()
-        rect = img.get_rect()
-        track_image_rect.topleft = drag.handle_event(event, rect, track_image_rect.topleft)
-        screen.blit(track_image, track_image_rect.topleft)
+        #img = zoom.get_image()
+        #rect = img.get_rect()
+        #track_image_rect.topleft = drag.handle_event(event, rect, track_image_rect.topleft)
+        #screen.blit(track_image, track_image_rect.topleft)
 
         # reset clip
         screen.set_clip(None)
