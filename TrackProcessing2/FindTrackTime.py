@@ -1,35 +1,49 @@
-import generateSpline
-import pygame as pg
-import time
-from enum import Enum
-from pygame.locals import *
+#import generateSpline
+
 from Physics import *
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
+import numpy as np
+import generateSpline
 
 
-
-def findMaxVelocity(radius, mass):
+def findMaxVelocity(radius, mass, density):
    
     downforce = 2000 #N
     mu = 1.5
+    maxVerticalThrust, maxVerticalVel = PhysicsFormulas.maxThrustEquation(density)
     maxLateralForceEquation = PhysicsFormulas.maxLateralForceEquation(mu, mass, downforce)
     maxLateralForceEquation = PhysicsFormulas.maxLateralAccelerationEquation(maxLateralForceEquation, mass)
     maxVel = np.sqrt((maxLateralForceEquation*radius) / mass)
+    np.clip(maxVel, 0, maxVerticalVel)
     return maxVel
 
-def findVelocities(maxVelArr, mass):
+def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType):
     n = len(maxVelArr)
     vel = np.zeros(n)
+    rand_bsp = np.vstack([rand_bsp, rand_bsp[0]])
+    x, y = rand_bsp[:, 0], rand_bsp[:, 1]
+    dx = np.hypot(np.diff(x), np.diff(y))
+    dx = dx/pixels_per_meter
     
     # Forward pass – acceleration limit
-    vel[0] = maxVelArr[0]
+    vel[0] = 1
     for i in range(1, n):
+        u = vel[i-1]
+        downForce = updateVar.updateDownforce(u)
+        thrust = updateVar.updateThrust(u)
+        drag = updateVar.updateDrag(u, density)
+        finalForce = updateVar.updateResultantForce(thrust, drag)
+        tyreCoeff = updateVar.updateTyreWear(tyreType, noLap)
+        staticFriction = updateVar.updateStaticForceFriction(tyreCoeff, mass, downForce)
+
         # Accelerate but cap by max velocity
-        a = min(PhysicsFormulas.accelerationPowerEquation(vel[-1], mass), PhysicsConsts['ACCEL_MAX'].value)
-        vel[i] = min(maxVelArr[i], vel[i-1] + a)
+        a = min(staticFriction/mass, PhysicsConsts['ACCEL_MAX'].value, finalForce/mass)
+        coeff = [0.5*a, u, -dx[i]]
+        dt = max(np.roots(coeff))
+        vel[i] = min(maxVelArr[i], u + a*dt)
 
     # Backward pass – deceleration limit
     for i in range(n-2, -1, -1):
@@ -97,30 +111,146 @@ def plot_velocity_colored_line(spline_points, velocities, cmap='turbo'):
     ax.set_title("Velocity-Colored Racing Line", fontsize=14)
     plt.show()
 
+def plot_velocity_coloured_line_v2(points, velocities, mesh):
+    x = points[:,0]
+    y = points[:,1]
 
-def main(rand_bsp, radius, mass, pixels_per_meter):
+    left_boundary = mesh[:,0,:]
+    right_boundary = mesh[:,-1,:]
+
+    # Each line seg = [(x0,y0),(x1,y1)]
+    segments = np.stack([np.column_stack([x[:-1], y[:-1]]),
+                         np.column_stack([x[1:],  y[1:]])], axis=1)
+
+    fig, ax = plt.subplots(figsize=(7,7))
+
+    lc = LineCollection(segments, cmap='turbo', linewidth=4)
+    lc.set_array(velocities[:-1])        # colour by speeds
+    line = ax.add_collection(lc)
+
+    cbar = fig.colorbar(line, ax=ax)
+    cbar.set_label("Velocity (m/s)")
+
+    ax.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
+    ax.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
+
+    ax.set_aspect('equal')
+    ax.set_title("Racing Line Colour-Graded by Velocity")
+    ax.set_xlabel("X Position (m)")
+    ax.set_ylabel("Y Position (m)")
+    ax.autoscale()
+
+    plt.show()
+
+def main(rand_bsp, radius, pixels_per_meter):
+    
+    mass = 900 #KG
+    maxNoLap = 70 #maximum number of laps
+    #CONSTANTS - set by user
+    temp = 20 #deg
+    height = 300 #m above sea level
+    pressure = updateVar.updatePressure(height, temp)
+    density = updateVar.updateDensity(pressure, temp)
+    tyreType = 'SOFT'
+
+    #EVERY  LAP STUFF
+    noLap = 1 #first lap
+    mass = updateVar.updateMass(noLap, maxNoLap)
+    #update tyre wear...
 
 
-
-    maxVelArr = findMaxVelocity(radius, mass)
-    vel = findVelocities(maxVelArr, mass)
+    maxVelArr = findMaxVelocity(radius, mass, density)
+    vel = findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType)
     t  = calculateTrackTime(vel, rand_bsp, pixels_per_meter)
+    print(f"lap time: {int(t//60)}: {t%60:.3f}")
     return vel, t
 
 
-#vel, rand_bsp, t = main()
-#print('time: ', t)
-
-#plotVelocity(vel, maxVelArr, mean_radius)
-#plot_velocity_colored_line(rand_bsp, vel)
 
 
+def sample_90deg_racing_line(num_points=200, R=50, entry=2000, exit=20):
+    pts = []
 
+    # Entry straight (along +x direction)
+    xs = np.linspace(0, entry, num_points//4)
+    ys = np.zeros_like(xs)
+    pts.extend(np.column_stack((xs, ys)))
+
+    # 90-degree left arc
+    thetas = np.linspace(0, np.pi/2, num_points//2)
+    xc, yc = entry, R  # circle center
+    xs = xc + R * np.sin(thetas)
+    ys = yc - R * np.cos(thetas)
+    pts.extend(np.column_stack((xs, ys)))
+
+    # Exit straight (heading upward)
+    xs = np.full(num_points//4, entry + R)
+    ys = np.linspace(R, R + exit, num_points//4)
+    pts.extend(np.column_stack((xs, ys)))
+
+    return np.array(pts)
+
+def radii_for_90deg(num_points=200, R=50):
+    arr = np.zeros(num_points)
+    arr[:num_points//4] = np.inf       # entry straight
+    arr[num_points//4:3*num_points//4] = R
+    arr[3*num_points//4:] = np.inf     # exit straight
+    return arr
+
+# racing_line = sample_90deg_racing_line()
+# radius = radii_for_90deg()
+# pixels_per_meter = 0.4
+# vel, t = main(racing_line, radius, pixels_per_meter)
+real_properties = {
+'silverstone': {
+    'real_track_length': 5891, #meters
+    'real_track_width': 12 #meters
+    },
+'monza': {
+    'real_track_length': 5793,
+    'real_track_width': 12
+    },
+'qatar': {
+    'real_track_length': 5419,
+    'real_track_width': 12
+    },
+'90degturn': {
+    'real_track_length': 1000,
+    'real_track_width': 12
+    }
+}
+
+
+def init_track():
+    global track_name
+    track_list = ["monza", "silverstone", "qatar", "90degturn"]
+    track_name = track_list[1]
+    return generateSpline.main(track_name, real_properties)
+
+def create_random_bsp(mesh, track_name, center_line_properties):
+    random_pts = generateSpline.random_points(mesh, num_pts_across=50, rangepercent=0.020, sample_size=500)
+    rand_bsp = generateSpline.catmull_rom_spline(random_pts)
+    props = generateSpline.spline_properties(rand_bsp)
+
+    pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
+
+    # compute radius (1/curvature), skip zero curvature to avoid div by zero
+    radius = [1 / abs(c) if abs(c) > 1e-6 else np.inf for c in props["curvature"]]
+
+    radius = np.array(radius) / pixels_per_meter
+    return rand_bsp, radius
+
+def run():
+    center_line_ctrpts, center_line, center_line_properties, mesh = init_track()
+    pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
+    racing_line, radius = create_random_bsp(mesh, track_name, center_line_properties)
+    vel, t = main(racing_line, radius, pixels_per_meter)
+    print(f"time taken: {int(t//60)}: {t%60:.3f}")
+    plot_velocity_coloured_line_v2(racing_line, vel, mesh)
+
+
+
+run()
 #generateSpline.plot_spline(rand_bsp, random_pts, None)
 #generateSpline.plot_bspline(rand_bsp, random_pts, mesh, props["curvature"])
 #generateSpline.plot_everything(mesh, center_line, center_line_ctrpts, rand_bsp, random_pts)
-
-run = True
-#while run:
-
-

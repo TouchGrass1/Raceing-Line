@@ -116,7 +116,8 @@ def spline_properties(curve):
         'tangent': tangent,
         'normal': normal,
         'curvature': curvature,
-        'length': total_length
+        'length': total_length,
+        'radius': r
         }
     
 def generate_mesh(curve, track_width, mesh_res, num_points_across, normals):

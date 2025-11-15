@@ -48,7 +48,7 @@ def initialize_population(pop_size):
     population = []
     for _ in range(pop_size):
         rand_bsp, radius = create_random_bsp(mesh, track_name, center_line_properties)
-        vel, t = find_track_time(rand_bsp, radius, mass, pixels_per_meter)
+        vel, t = find_track_time(rand_bsp, radius, pixels_per_meter)
         population.append([rand_bsp, t])
     return population
 
@@ -105,12 +105,12 @@ def main():
     global mesh
     global center_line_properties
     global pixels_per_meter
-    global mass
+
     
     start_time = time.time()
     center_line_ctrpts, center_line, center_line_properties, mesh = init_track()
 
-    mass = 700 #kg
+
     pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
 
     pop_size = 100
@@ -134,7 +134,7 @@ def main():
             props = generateSpline.spline_properties(child)
             radius = [1 / abs(c) if abs(c) > 1e-6 else np.inf for c in props["curvature"]]
             radius = np.array(radius) / pixels_per_meter
-            vel, t = find_track_time(child, radius, mass, pixels_per_meter)
+            vel, t = find_track_time(child, radius, pixels_per_meter)
             new_population.append((child, t, vel))
         
         population = new_population
@@ -143,10 +143,12 @@ def main():
         print(f"Gen {generation}: Best time = {best_time:.3f}s")
 
     print('time taken: ', time.time() - start_time)
-    best = min(population, key=lambda x: x[1])  # returns tuple (spline, time, velocity)
-    best_spline = best[0]
-    best_time = best[1]
-    best_vels = best[2]
+    try:
+        best = min(population, key=lambda x: x[1])  # returns tuple (spline, time, velocity)
+        best_spline = best[0]
+        best_time = best[1]
+        best_vels = best[2]
+    except IndexError: print(best)
 
     plot_just_spline(best_spline)
     plot_velocity_colored_line(best_spline, best_vels)
