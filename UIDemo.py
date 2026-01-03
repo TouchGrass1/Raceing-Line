@@ -97,7 +97,7 @@ def main():
     start_time = time.time()
 
     screen = pg.display.set_mode(flags=pg.FULLSCREEN)
-    screen = pg.display.set_mode((720,640))
+    screen = pg.display.set_mode((1920,1080))
     screen_shape = screen.get_size()
     pg.display.set_caption('Racing Lines')
 

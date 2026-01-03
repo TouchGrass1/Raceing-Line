@@ -312,13 +312,8 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     ORDERS_DIR.mkdir(exist_ok=True)
     filepath = ASSETS_DIR / f"{track_name}.png"
 
-    img = Image.open(filepath).convert('RGBA')
-    # Create white background image
-    white_bg = Image.new('RGBA', img.size, (255, 255, 255, 255))
-    # Composite image over white background
-    img_composite = Image.alpha_composite(white_bg, img)
-    img_gray = img_composite.convert('L') # ensure grayscale
-    img_arr = np.asarray(img_gray)
+    img = Image.open(filepath).convert('L') # ensure grayscale
+    img_arr = np.asarray(img)
 
     binary = img_arr < 128  # invert image
 
@@ -348,10 +343,10 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     mesh = generate_mesh(center_line, track_width_pixels, mesh_res, num_points_across, center_line_properties['normal']) 
 
     
-    random_pts = random_points(mesh, num_points_across, rangepercent, sample_size=1000)
+    #random_pts = random_points(mesh, num_points_across, rangepercent)
 
-    rand_bsp, curvature = b_spline(random_pts, sample_size= 1000)
-    radius = 1/abs(curvature)
+    #rand_bsp, curvature = b_spline(random_pts, sample_size= 1000)
+    #radius = 1/abs(curvature)
     #print(repr(random_pts))
  
 
@@ -359,15 +354,15 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
     
 
-    plot_img(img_arr)
-    plot_skeleton(skeleton_points, binary)
-    plot_approx(approx, binary)
-    plot_spline(center_line, approx)
+    #plot_img(img_arr)
+    #plot_skeleton(skeleton_points, binary)
+    #plot_approx(approx, binary)
+    #plot_spline(center_line, approx, img_arr)
     #plot_spline(rand_bsp, random_pts, img_arr)
     #plot_bspline(rand_bsp, random_pts, mesh, curvature)
-    plot_boundaries(mesh, center_line)
-    plot_mesh(mesh, img_arr)
-    #plot_everything(mesh, center_line, approx, rand_bsp, random_pts)
+    #plot_boundaries(mesh, center_line)
+    #plot_mesh(mesh, img_arr)
+    #plot_everything(mesh, center_line, approx, rand_bsp, random_pts, img_arr)
     return approx, center_line, center_line_properties, mesh
 
 
@@ -385,10 +380,6 @@ if __name__ == "__main__":
     'qatar': {
         'real_track_length': 5419,
         'real_track_width': 12
-        },
-    '90degturn': {
-        'real_track_length': 1000,
-        'real_track_width': 12
         }
     }
-    main('90degturn', real_properties)
+    main('silverstone', real_properties)

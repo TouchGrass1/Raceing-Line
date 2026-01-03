@@ -30,12 +30,16 @@ class ViewTrackBoundary:
         boundary_surface = pg.Surface((self.width, self.height), pg.SRCALPHA)
 
         # Draw boundaries
+        red, green, blue = 0,0,0
         for path in self.track_order:
             for i in range(1, len(path)):
-                temp = len(self.track_order[0][i])//24
-                boundary_color = (temp, 255 - temp, 180)
+                #print(f"Drawing line from {path[i - 1]} to {path[i]}")
+                red = i % 254
+                green = (i * 2) % 255
+                blue = 255 - (i % 255)
+                boundary_color = (red, green, blue)
                 pg.draw.line(boundary_surface, boundary_color, path[i - 1], path[i], width=2)
-
+            
         return boundary_surface
 
 import numpy as np
@@ -100,7 +104,7 @@ def main():
     background = pg.Surface(screen.get_size()).convert()
     background.fill((20, 20, 20))
 
-    track_name = "silverstone"
+    track_name = "qatar"
     viewer = ViewTrackBoundary(track_name)
     boundary_surface = viewer.view_track_boundary()
     triangles = Subdivide(track_name).run()
@@ -116,8 +120,8 @@ def main():
 
         screen.blit(background, (0, 0))
         screen.blit(boundary_surface, (0, 0))
-        for i in range(1, len(triangles) - 1):
-            pg.draw.polygon(screen, (255,0,0), triangles[i], 2)
+        #for i in range(1, len(triangles) - 1, 10):
+            #pg.draw.polygon(screen, (255,0,0), triangles[i], 2)
         pg.display.flip()
 
     pg.quit()

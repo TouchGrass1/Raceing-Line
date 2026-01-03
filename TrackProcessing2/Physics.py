@@ -24,7 +24,7 @@ class PhysicsFormulas:
     def downforceEquation(x): #x = velocity
         return 0.174686*(x**2) + 25.6869*x + 101.731
     def lateralForceEquation(mass, velocity, radius):
-        if radius == np.inf: return 0
+        if radius > 300: return 0 #largest radius of a turn is 250m
         else: return (mass*(velocity**2))/radius
     def maxLateralForceEquation(mu, mass, downforce):
         weight = mass*PhysicsConsts['g'].value
@@ -49,7 +49,9 @@ class PhysicsFormulas:
             thrust = updateVar.updateThrust(vel)
             drag = updateVar.updateDrag(vel, density)
             if drag > thrust:
-                run = False 
+                run = False
+                vel = vel - 1
+                thrust = updateVar.updateThrust(vel)
         return thrust, vel 
 
 
@@ -67,7 +69,7 @@ class updateVar:
         return -noLap * (0.2 * PhysicsConsts[tType].value) / PhysicsConsts[maxLife].value + PhysicsConsts[tType].value
 
     def updateThrust(vel):
-        if vel == 0: return np.inf
+        if vel == 0: return PhysicsConsts['POWER'].value
         return PhysicsConsts['POWER'].value/vel
 
     def updatePressure(height, temp): #height (m) temp(deg) #only once
