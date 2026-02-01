@@ -9,7 +9,7 @@ FUNCTION FindBoundary(startNode):
         FOR radius FROM 1 TO 5:
             windowSize = (2 * radius) + 1
             neighbors = GetPixelsInWindow(currentNode, windowSize)
-            
+
             FOR EACH pixel IN neighbors:
                 IF pixel.color == GRAY AND pixel NOT IN boundarySet:
                     IF radius > 1:
@@ -23,7 +23,7 @@ FUNCTION FindBoundary(startNode):
             IF foundNext == True:
                 BREAK FOR (radius loop)
 
-        #Termination condition: back at start or no more pixels found
+        #Stop when back at start or no more pixels found
         IF currentNode == startNode OR foundNext == False:
             BREAK LOOP
 
@@ -497,3 +497,20 @@ CLASS Zoom:
 
     FUNC get_image(self):
         RETURN self.resized_image
+
+FUNCTION b_spline(Points, sample_size):
+    apply b-spline formula
+    calculte first and second derrivitve
+    return b-spline, curvature
+
+FUNCTION random points(mesh, number of points in a row,  sample_size):
+    random points = []
+    step = round up (length of mesh / sample_size)
+
+    DO until counter = length of mesh:
+        random number = random (0, number of points in a row)
+        point = mesh[counter][random_number_new]
+        random points.append(point)
+
+        counter = counter + step
+    return random points

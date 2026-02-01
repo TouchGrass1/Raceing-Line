@@ -140,7 +140,7 @@ def generate_mesh(curve, track_width, mesh_res, num_points_across, normals):
 def b_spline(pts, sample_size):
     x = pts[:,0]
     y = pts[:,1]
-    tck, u = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree, u = value for which b-spline is at each point properties
+    tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree
     u_fine = np.linspace(0, 1, sample_size) #number of points to have on the radius
     x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
     dx, dy = interpolate.splev(u_fine, tck, der=1)
@@ -150,20 +150,42 @@ def b_spline(pts, sample_size):
 
 
 def random_points(mesh, num_pts_across, rangepercent, sample_size):
-    rand_pts = []
-    random_number_old = random.randint(0, num_pts_across-1)
+    rand_pts_idx = []
     rangeVal = rangepercent*num_pts_across
     step = ceil(len(mesh) / sample_size)
 
-    for i in range(0, len(mesh), step):
-        start = max(0, int(random_number_old - rangeVal))
-        end = min(len(mesh[i]) -1,int(random_number_old + rangeVal)) #ensure not out of range
-        random_number_new = random.randint(start, end)
-        pt = mesh[i][random_number_new]
-        rand_pts.append(pt)
-        random_number_old = random_number_new
-    return np.array(rand_pts)
+    num_pts_across -= 1 #to ensure not out of range
+    current_idx = random.randint(0, num_pts_across)
 
+    mean = 0
+    for i in range(0, len(mesh), step):
+        target_idx = (num_pts_across) // 2 #the middle
+        bias_factor = 0.1 # how much it pulls towards the center
+        steered_center = (current_idx * (1 - bias_factor)) + (target_idx * bias_factor)
+        
+        start = max(0, int(steered_center - rangeVal))
+        end = min(num_pts_across, int(steered_center + rangeVal)) #ensure not out of range
+        
+        mean += start
+        current_idx = random.randint(start, end)
+        rand_pts_idx.append(current_idx)
+    
+    print('mean index: ',mean/len(rand_pts_idx))
+    for i in range(len(rand_pts_idx)-2, -1, -1):
+        idx_old = rand_pts_idx[i+1]
+        idx_new = rand_pts_idx[i]
+
+        if abs(idx_new - idx_old) > rangeVal:
+            start = max(0, int(idx_old - rangeVal))
+            end = min(len(mesh[i]) -1,int(idx_old + rangeVal))
+            rand_pts_idx[i] = random.randint(start, end)
+    
+    rand_pts = []
+    for i, row in enumerate(range(0, len(mesh), step)):
+        actual_pt_idx = rand_pts_idx[i]
+        rand_pts.append(mesh[row][actual_pt_idx])
+
+    return np.array(rand_pts)
 
 
 def plot_boundaries(mesh, curve):
@@ -325,10 +347,10 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     #variables
 
 
-    #num_points_across= 50
-    #mesh_res = 1 #the bigger the number the lower the resolution
+    num_points_across= 50
+    mesh_res = 1 #the bigger the number the lower the resolution
     
-    #rangepercent = 0.05 #the lower the number the lower the range --> less spiky curve between 0,1
+    rangepercent = 0.07 #the lower the number the lower the range --> less spiky curve between 0,1
 
     #running functions
 
@@ -359,14 +381,14 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
     
 
-    plot_img(img_arr)
-    plot_skeleton(skeleton_points, binary)
-    plot_approx(approx, binary)
-    plot_spline(center_line, approx)
-    #plot_spline(rand_bsp, random_pts, img_arr)
-    #plot_bspline(rand_bsp, random_pts, mesh, curvature)
-    plot_boundaries(mesh, center_line)
-    plot_mesh(mesh, img_arr)
+    #plot_img(img_arr)
+    #plot_skeleton(skeleton_points, binary)
+    #plot_approx(approx, binary)
+    #plot_spline(center_line, approx)
+    #plot_spline(rand_bsp, random_pts)
+    plot_bspline(rand_bsp, random_pts, mesh, curvature)
+    #plot_boundaries(mesh, center_line)
+    #plot_mesh(mesh, img_arr)
     #plot_everything(mesh, center_line, approx, rand_bsp, random_pts)
     return approx, center_line, center_line_properties, mesh
 
@@ -391,4 +413,4 @@ if __name__ == "__main__":
         'real_track_width': 12
         }
     }
-    main('90degturn', real_properties)
+    main('monza', real_properties)
