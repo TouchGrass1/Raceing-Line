@@ -22,14 +22,10 @@ def main():
     manager.run()
 
     track_surface = manager.get_track_surface()
-<<<<<<< Updated upstream
-
-    print("Time taken:", time.time() - start_time)
-=======
-    viewer = ViewTrackBoundary(track_name)
-    boundary_surface = viewer.get_track_boundary()
-    subdiv = Subdivide(track_name, spacing=10.0, lateral_divs=15)
-    subdiv.main()
+    #viewer = ViewTrackBoundary(track_name)
+    #boundary_surface = viewer.get_track_boundary()
+    #subdiv = Subdivide(track_name, spacing=10.0, lateral_divs=15)
+    #subdiv.main()
     
 
     
@@ -42,14 +38,13 @@ def main():
     #draw stuff
     screen.blit(background, (0, 0))
     if track_surface is not None:
-        #screen.blit(track_surface, (0, 0))
-        screen.blit(boundary_surface, (0, 0))
-        subdiv.drawMeshgrid(screen)
+        screen.blit(track_surface, (0, 0))
+        #screen.blit(boundary_surface, (0, 0))
+        #subdiv.drawMeshgrid(screen)
         #randomPath.drawPath(screen, random_path)
         #subdiv.drawTriangles(screen)
 
         pg.display.flip()
->>>>>>> Stashed changes
 
     running = True
     while running:

@@ -1,0 +1,516 @@
+FUNCTION FindBoundary(startNode):
+    boundarySet = {startNode}
+    currentNode = startNode
+    
+    LOOP:
+        foundNext = False
+        
+        #Iterate through expanding search windows: 3x3, 5x5, ..., 11x11
+        FOR radius FROM 1 TO 5:
+            windowSize = (2 * radius) + 1
+            neighbors = GetPixelsInWindow(currentNode, windowSize)
+
+            FOR EACH pixel IN neighbors:
+                IF pixel.color == GRAY AND pixel NOT IN boundarySet:
+                    IF radius > 1:
+                        DrawLine(currentNode, pixel) // Join gaps if radius was increased
+                    
+                    Add pixel TO boundarySet
+                    currentNode = pixel
+                    foundNext = True
+                    BREAK LOOP (inner)
+            
+            IF foundNext == True:
+                BREAK FOR (radius loop)
+
+        #Stop when back at start or no more pixels found
+        IF currentNode == startNode OR foundNext == False:
+            BREAK LOOP
+
+    RETURN boundarySet
+
+FUNCTION ResampleBoundary(points, targetCount):
+    n = length(points)
+    cumulativeDist = [0]
+    S totalDist = 0
+
+    #1. Calculate cumulative distance
+    FOR i FROM 1 TO n - 1:
+        totalDist += Distance(points[i], points[i-1])
+        Append totalDist TO cumulativeDist
+
+    resampledPoints = []
+    interval = totalDist / (targetCount - 1)
+
+    #2. Linearly interpolate to find evenly spaced nodes
+    new_X = linearly Interpolate (cumulativeDist, spacing, points)
+
+    RETURN resampledPoints
+
+Center Line method
+
+FUNCTION CenterLine(points):
+    skeleton = skeletonize(points)
+    centerlineArr = array(skeleton)
+    resampled = ResampleBoundary(centerlineArr)
+    centerLineSpline = catMullRom(resampled)
+    normal = -1/tangent(centerLineSpline)
+    for point in centerLineSpline:
+            mesh_row_pts = point + normalVector*offset
+            Add mesh_row_pts TO mesh
+    return mesh
+    save mesh as BIN file
+
+Physics
+
+FUNCTION MAX VELOCITY FUNC (RADIUS, MASS, DENSITY):
+    Max Vertical Thrust, max Vertical Velocity = max Thrust Equation(density)
+    Max Lateral Force = max Lateral Force Equation(mu, mass, downforce)
+    Max Lateral Force = max Lateral Acceleration Equation(maxLateralForce, mass)
+    Max Velocity = sqrt((maxLateralForce*radius) / mass)
+    clip(maxVel, 0, maxVerticalVel)
+    return maxVel
+
+FUNCTION VELOCITY FUNC(MAXVELARR, RAND_BSP, PIXELS_PER_METER, MASS, DENSITY, NOLAP, TYRETYPE):
+    X = x values of random bspline
+    Y = y values of random bslpine
+    Dx = distance between x values
+    Dy = distnace between y values
+    Do until counter == length of max velocity array:
+    u = previous velocity
+    downforce = update downforce (u)
+    thurst = update thrust (u)
+    drag = update drag (u, density)
+    final Force = update resultant froce (thrust, drag)
+    tyre coeff = update tyre coefficient
+    static fraction = update static friction
+    a = minimum of static friction / mass, preset maximum acceleration, final force / mass
+    coefficients = 0.5*a, u, -dx
+    dt = maximum of the solutions of the quadratic equation with coefficients = coefficients
+    Velocity  = minimum of (max velocity or u + a*dt)
+    Do until counter == length of max velocity array, going backwards:
+    If current velocity is greater than next velocity - maximum deceleration:
+    Current velocity = next velocity - maximum deceleration
+    Return velocities
+
+FUNCTION CALCULATE TRACK TIME FUNC (VELOCITIES, PATH):
+    X = x values of path
+    Y = y values of path
+    Distances = distance function of the differences of x and y
+    T = cumulative sum of distances / velocities
+    Return final time
+    
+FUNCTION MAIN FUNC(PATH, MASS, MAX LAP NUMBER, LAP NUMBER, TEMP, HEIGHT, PRESSURE, DENSITY, TYRE TYPE):
+    Mass = update mass
+    Max velocity = find max velocity
+    Velocity = find velocity
+    T = calculate track time
+    Return velocity, t
+
+Home Screen
+
+FUNCTION Login():
+    password = string (asdf)
+    correct = False
+    while not correct:
+        text input = string(input("enter password"))
+        if password == text input:
+            correct = True
+            FUNCTION HomeScreen()
+            break while loop
+        
+
+FUNCTION HomeScreen ():
+    set screen = full screen
+
+    track selected = false
+    quit = False
+    start time = current time
+    while not quit:
+        #draw Panels
+        left panel.draw
+        right panel.draw
+        top panel . time_display
+        top panel . lap_display
+        top panel . pb_display
+        top panel . weather_display
+
+
+        # reset button
+        if reset button clicked:
+            reset all values to default
+            track selected = false
+            start time = current time
+
+
+        if track selected:
+            draw track
+        
+        #dropdown
+        if change track dropdown button clicked:
+            open drop down
+            if button in dropdown clicked:
+                set track to button clicked
+                set track selected = True
+                FUNCTION track processing and load
+        
+        #tyre type
+        if tyre compound button clicked:
+            set tyre compound = (tyre compound + 1) % 3 #cycle through soft medium and hard
+            FUNCTION find time
+
+        #weather
+        if weather button clicked:
+            set sunny not = sunny #cycle through sunny and rain
+            FUNCTION find time
+
+        #sliders
+        if mouse down on slider:
+            set start x = mouse.X
+            slider clicked = true
+        if mouse up and slider clicked == true:
+            change = mouse.x - start X
+            new value = current value - change
+            update slider = max(0, new value) or min (max_value, new value)
+            FUNCTION find time
+
+        #zoom
+        if mouse within center panel and scroll wheel moved:
+            set change = change in scroll wheel
+            update track dimension = dimension * change/100
+        
+        #click and drag
+        if left mouse button down and mouse posistion within center panel:
+            set start posistion = mouse.posistion
+            dragging = true
+        if left mouse button up and dragging == True:
+            change = mouse.posistion - start posistion
+            set track coordinates = current posistion + change
+
+        update all
+        show timer = current time - start time
+
+CLASS BasePanel:
+    FUNC innit (self,  screen_shape, font, font_size):
+        self.screen_shape = screen_shape
+        self.font = font
+        self.font_size = font_size
+    FUNC draw text (self, surface, text, x, y, colour="WHITE"):
+        text_surface = render font surface
+        draw text surface
+
+CLASS TopPanel(BasePanel):
+    FUNC __init__(self, screen_shape, font, font_size):
+        inherit from parent
+        self.end_x = 0.8 * screen x
+        self.even_spacing = self.end_x // 6
+        self.x_margin = 0
+        self.y = 60
+        self.screen_shape = screen_shape
+    FUNC time_display(self, surface, time_val):
+        draw text( time, location)
+
+    FUNC lap_display(self, surface, lap_no):
+       draw text( lap no, location)
+
+    FUNC pb_display(self, surface, pb):
+       draw text( pb, location)
+
+    FUNC weather_display(self, surface, weather):
+       draw text( weather, location)
+
+    FUNC track_name_display(self, track_name, track_list):
+        draw text( track name, location)
+
+CLASS LeftPanel(BasePanel):
+    FUNC __init__(self, screen_shape, font, font_size):
+        inherit from parent
+        self.end_x = 0.1 * screen x
+        width = 0.85 screen x
+        height = 0.3 * width
+        self.screen_shape = screen_shape
+    
+    FUNC draw(self, surface):
+        draw button(reset button)
+    
+    FUNC handle_event(self, event):
+        button.handle_event(reset button)
+        
+CLASS RightPanel(BasePanel):
+    FUNC __init__(self, screen_shape, font, font_size):
+        inherit from parent
+        self.end_x = ...
+        width = ...
+        height = ...
+        self.screen_shape = screen_shape
+
+        set throttle slider = Slider()
+        set throttle posistion = dynamic posistion depending on screen size
+
+        set brake slider = Slider()
+        set brake posistion = dynamic posistion depending on screen size
+
+        set weight entery box = entryBox()
+        set height entry box = entryBox()
+
+        set laptime graph = graphs()
+    
+    FUNC draw(self, surface):
+        draw text(throttle)
+        draw text(brake)
+        draw throttle Slider
+        draw brake slider
+        draw height entry box
+        draw weight box
+        draw laptime graphs
+
+CLASS Button:
+    FUNC innit (self, x ,y , screen_shape, label):
+        self.width = ...
+        self.height = ...
+        self.clicked = false
+        self.clicking = false
+        self.hover = false
+        self.label = label
+    FUNC draw(self, screen, font):
+        if self.clicking: colour = blue
+        elif self.hover: colour = red2
+        else: colour = red
+        draw button
+        draw label text
+    
+    FUNC handle_event(self, event):
+        if MOUSEBUTTONDOWN:
+            if mouse posistion in button:
+                self.clicking = True
+        if MOUSEBUTTONUP:
+            if self.clicking and mouse posistion in button:
+                self.clicked = true
+            self.clicking = false
+        if MOUSEMOTION:
+            if mouse posistion in button:
+                self.hover = True
+            else: self.hover = False
+    
+    FUNC get clicked(self):
+        if self.clicked:
+            self.clicked = False
+            return true
+        return false
+
+CLASS Dropdown (inherits Button):
+    FUNC innit (self, x, y, screen_shape, label, options):
+        super button innit
+        self.options = options
+        self.expanded = False
+        self.selected_option = label
+        self.hover_options = -1
+        create list of rectangles for each option
+
+    FUNC draw(self, screen, font):
+        if self.expanded:
+            draw background rect (blue)
+            draw main label text
+            FOR i, option in enumerate(self.options):
+                if i is self.hover_options: colour = red2
+                else: colour = grey
+                
+                if last option: draw rect with bottom rounded corners
+                else: draw rect
+                
+                draw option text
+        else: 
+            call super button draw
+
+    FUNC handle_event(self, event):
+        if MOUSEBUTTONDOWN and Left Click:
+            if mouse position in button and not expanded:
+                self.expanded = True
+            elif self.expanded:
+                FOR i, rect in enumerate(self.option_rects):
+                    if mouse position in rect:
+                        self.selected_option = option[i]
+                        self.label = self.selected_option
+                        self.expanded = False
+        
+        if MOUSEBUTTONUP and mouse position NOT in button:
+            self.expanded = False
+
+        if MOUSEMOTION and self.expanded:
+            self.hover_options = -1
+            FOR i, rect in enumerate(self.option_rects):
+                if mouse position in rect:
+                    self.hover_options = i
+                    break
+
+    FUNC get_track(self):
+        return self.selected_option
+
+CLASS Divider:
+    FUNC innit(self, x, y, w, h):
+        self.rect = create rect at x, y, w, h
+
+    FUNC draw(self, screen):
+        draw rect (grey)
+
+CLASS Dividers:
+    FUNC innit(self, screen_shape):
+        calculate border positions (top, right, left, pages) based on screen_shape
+        self.dividers = dictionary containing:
+            "top_panel": new Divider(...)
+            "right_panel": new Divider(...)
+            "left_panel": new Divider(...)
+            "right_pages": new Divider(...)
+
+    FUNC draw(self, screen):
+        FOR divider in self.dividers:
+            divider.draw(screen)
+
+    FUNC get(self, name):
+        return divider from dictionary by name
+
+CLASS Slider:
+    FUNC innit(self, x, y, w, h, min_val, max_val, initial_val, label, active):
+        self.active = active
+        self.rect = create rect
+        self.min = min_val
+        self.max = max_val
+        self.val = initial_val
+        self.dragging = False
+        self.handle_x = calculate x position based on value
+
+    FUNC draw(self, screen, font):
+        draw slider track rect
+        
+        if self.active:
+            draw handle circle at self.handle_x
+            draw label text
+            draw min value text
+            draw max value text
+            draw current value text
+        else:
+            calculate width based on value percentage
+            draw filled rect (progress bar style)
+            draw percentage text
+
+    FUNC update_value(self, mouse_x):
+        if self.active:
+            keep mouse_x within slider bounds
+            self.handle_x = mouse_x
+            self.val = calculate value based on handle position
+
+CLASS EntryBox:
+    FUNC innit(self, x, y, w, h, text, pwd, placeholder):
+        self.rect = create rect
+        self.color = inactive color
+        self.pwd = pwd
+        self.text = text
+        self.active = False
+        update text surface
+
+    FUNC handle_event(self, event):
+        if MOUSEBUTTONDOWN:
+            if mouse position in box:
+                self.active = True
+                self.color = active color
+            else:
+                self.active = False
+                self.color = inactive color
+        
+        if KEYDOWN:
+            if self.active:
+                if key is RETURN:
+                    if self.text equals self.pwd:
+                        print "Correct Password"
+                        return True
+                    clear self.text
+                elif key is BACKSPACE:
+                    remove last character from self.text
+                else:
+                    add typed character to self.text
+                
+                update text surface to show self.text
+        
+        if not self.active:
+            update text surface to show placeholder
+
+    FUNC draw(self, screen):
+        draw text surface
+        draw border rect
+
+CLASS Text:
+
+    FUNC innit(self, x, y, text, font_size):
+        self.pos = (x, y)
+        self.text = text
+        self.font = create font
+
+    FUNC draw(self, background):
+        render text
+        draw text on background at self.pos
+
+CLASS Drag:
+    FUNC innit (self):
+        self.moving = False
+        self.start = (0, 0) (where the click began)
+        self.offset = (0, 0) (current position offset)
+
+    FUNC handle_event(self, event, rect, pos):
+        IF MOUSEBUTTONDOWN:
+            IF mouse position is inside rect:
+                self.moving = True
+                self.start = current mouse position
+                self.offset = current image position
+
+        ELSE IF MOUSEBUTTONUP:
+            self.moving = False
+
+        ELSE IF MOUSEMOTION and self.moving is True:
+            change = mouse posistion - self.start
+            RETURN new position (offset + change)
+
+        RETURN current pos
+
+CLASS Zoom:
+    FUNC innit (self, image):
+        self.cv_image = convert pygame surface to CV2 format
+        self.h, self.w = image dimensions (height and width)
+        self.ratio = width divided by height
+        self.scale = 1.0 (starting zoom level)
+        self.speed = 0.1 (increment per scroll)
+        self.resized_image = image
+
+    FUNC handle_event(self, event):
+        IF MOUSEWHEEL detected:
+            if scrolling up:
+                self.scale += self.speed
+            else:
+                self.scale -=  self.speed
+                self.scale = max(0.1, self.scale)
+
+            new_w = self.w * self.scale
+            new_h = self.h * self.scale
+            resize self.cv_image using cubic interpolation
+            self.resized_image = convert resized image back to pygame surface
+
+        RETURN self.resized_image
+
+    FUNC get_image(self):
+        RETURN self.resized_image
+
+FUNCTION b_spline(Points, sample_size):
+    apply b-spline formula
+    calculte first and second derrivitve
+    return b-spline, curvature
+
+FUNCTION random points(mesh, number of points in a row,  sample_size):
+    random points = []
+    step = round up (length of mesh / sample_size)
+
+    DO until counter = length of mesh:
+        random number = random (0, number of points in a row)
+        point = mesh[counter][random_number_new]
+        random points.append(point)
+
+        counter = counter + step
+    return random points

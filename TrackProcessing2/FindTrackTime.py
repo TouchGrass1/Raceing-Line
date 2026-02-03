@@ -27,8 +27,8 @@ def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, 
     x, y = rand_bsp[:, 0], rand_bsp[:, 1]
     dx = np.hypot(np.diff(x), np.diff(y))
     dx = dx/pixels_per_meter
-    
-    # Forward pass – acceleration limit
+
+    # Forward pass acceleration limit
     vel[0] = 1
     for i in range(1, n):
         u = vel[i-1]
@@ -41,39 +41,53 @@ def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, 
 
         # Accelerate but cap by max velocity
         a = min(staticFriction/mass, PhysicsConsts['ACCEL_MAX'].value, finalForce/mass)
+
         coeff = [0.5*a, u, -dx[i]]
         dt = max(np.roots(coeff))
         vel[i] = min(maxVelArr[i], u + a*dt)
 
-    # Backward pass – deceleration limit
+    # Backward pass deceleration limit
     for i in range(n-2, -1, -1):
         # Ensure deceleration limit isn’t exceeded
-        if vel[i] > vel[i+1] - PhysicsConsts['ACCEL_MIN'].value:
-            vel[i] = vel[i+1] - PhysicsConsts['ACCEL_MIN'].value
-        # Also respect the original max velocity
-        vel[i] = min(vel[i], maxVelArr[i])
+        v = vel[i+1]
+        u = vel[i]
+        dist = dx[i]
+
+        max_decel = PhysicsConsts['ACCEL_MIN'].value 
+        
+        u = np.sqrt(v**2 - 2 * max_decel * dist)
+        
+        vel[i] = min(vel[i], u)
+
 
     return vel
 
 def calculateTrackTime(vel, rand_bsp, pixels_per_meter):
     x, y = rand_bsp[:, 0], rand_bsp[:, 1]
 
-    # Compute distances between consecutive points
-    distances = np.hypot(np.diff(x), np.diff(y))
+    distances = np.hypot(np.diff(x), np.diff(y)) #pythag
     distances = distances/pixels_per_meter
     t = np.concatenate(([0], np.cumsum(distances/vel[:len(vel)-1])))
-    return t[-1]
-        
+    return t
 
-def plotVelocity(vel, maxVel, radius):
+def caculateAccelerations(vel, t):     
+    a_arr = np.zeros(len(vel))
+    for i in range(1, len(vel)):
+        dt = t[i] - t[i-1]
+        if dt == 0:
+            a_arr[i] = 0
+        else:
+            
+            a_arr[i] = (vel[i] - vel[i-1]) / dt
+    return a_arr
+
+def plotVelocity(vel, a_arr):
 
     x = np.arange(len(vel))
     plt.plot(x, vel)
-    plt.plot(x, maxVel)
-    plt.plot(x, radius)
+    plt.plot(x, a_arr)
+    #plt.plot(x, radius)
     plt.show()
-
-
 
 def plot_velocity_colored_line(spline_points, velocities, cmap='turbo'):
     """
@@ -142,6 +156,8 @@ def plot_velocity_coloured_line_v2(points, velocities, mesh):
 
     plt.show()
 
+
+
 def main(rand_bsp, radius, pixels_per_meter):
     
     mass = 900 #KG
@@ -162,7 +178,7 @@ def main(rand_bsp, radius, pixels_per_meter):
     maxVelArr = findMaxVelocity(radius, mass, density)
     vel = findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType)
     t  = calculateTrackTime(vel, rand_bsp, pixels_per_meter)
-    print(f"lap time: {int(t//60)}: {t%60:.3f}")
+    print(f"lap time: {int(t[-1]//60)}: {t[-1]%60:.3f}")
     return vel, t
 
 
@@ -245,8 +261,12 @@ def run():
     pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
     racing_line, radius = create_random_bsp(mesh, track_name, center_line_properties)
     vel, t = main(racing_line, radius, pixels_per_meter)
-    print(f"time taken: {int(t//60)}: {t%60:.3f}")
-    plot_velocity_coloured_line_v2(racing_line, vel, mesh)
+    #a = caculateAccelerations(vel, t)
+    #print(f"time taken: {int(t[-1]//60)}: {t[-1]%60:.3f}")
+    
+
+    #plot_velocity_coloured_line_v2(racing_line, vel, mesh)
+    #plotVelocity(vel, a)
 
 
 

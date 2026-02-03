@@ -20,7 +20,7 @@ ORDERS_DIR.mkdir(exist_ok=True)
 
 class TrackLoader:
     @staticmethod
-    def import_track(track_name: str = "qatar") -> Optional[Tuple[pg.Surface, int, int]]:
+    def import_track(track_name = "qatar"):
         """Load a track image from `assets/tracks/{track_name}.png`.
 
 
