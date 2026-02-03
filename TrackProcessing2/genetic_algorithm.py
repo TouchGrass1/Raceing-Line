@@ -46,33 +46,63 @@ real_properties = {
 
 def initialize_population(pop_size):
     population = []
-    for _ in range(pop_size):
+    for i in range(pop_size):
+        print(f'\r individual number: {i}', end='')
         rand_bsp, radius = create_random_bsp(mesh, track_name, center_line_properties)
         vel, t = find_track_time(rand_bsp, radius, pixels_per_meter)
-        population.append([rand_bsp, t])
+        population.append([rand_bsp, t, vel])
     return population
 
 def evaluate_population(population):
-    population.sort(key=lambda x: x[1]) #sort by time
+    population.sort(key=lambda x: x[1][-1]) #sort by time
     return population
 
 def select_parents(population):
-    times = np.array([ind[1] for ind in population])
-    fitness = 1.0 / (times + 1e-6)
+    times = np.array([individiual[1][-1] for individiual in population]) #get times
+    fitness = 1.0 / (times) if times.all() > 0 else np.ones_like(times) #avoid div by zero
     probs = fitness / np.sum(fitness)
 
-    parent1 = population[np.random.choice(len(population), p=probs)][0]
-    parent2 = population[np.random.choice(len(population), p=probs)][0]
+    parent1 = population[np.random.choice(len(population), p=probs)]
+    parent2 = population[np.random.choice(len(population), p=probs)]
     return parent1, parent2
 
 def crossover(parent1, parent2):
-    split = random.uniform(0.25, 0.75)
-    idx = int(len(parent1) * split)
-    child = np.vstack([parent1[:idx], parent2[idx:], parent1[0]])
-    return child
+    SECTOR_LENGTH = 100 #points per sector
 
-def mutate(individual, mutation_rate, mutation_strength):
-    return
+    p1_coords, _, p1_vels = parent1
+    p2_coords, _, p2_vels = parent2
+    child_coords = np.zeros_like(p1_coords)
+
+    p1_smooth_vel = np.convolve(p1_vels, np.ones(SECTOR_LENGTH)/SECTOR_LENGTH, mode='same') #use convolve - moving average allows to smooth out velocities over each sector
+    p2_smooth_vel = np.convolve(p2_vels, np.ones(SECTOR_LENGTH)/SECTOR_LENGTH, mode='same')
+
+    choices = (p2_smooth_vel > p1_smooth_vel).astype(float) #compare speeds from each sector
+    smooth_choices = np.convolve(choices, np.ones(SECTOR_LENGTH)/SECTOR_LENGTH, mode='same') #smooth out the choices to make the linear interpolation less spiky
+
+    for i in range(len(child_coords)):
+        weight = smooth_choices[i]
+        child_coords[i] = (1 - weight) * p1_coords[i] + weight * p2_coords[i] #LERP
+
+    return child_coords
+
+def mutate(individual, radius_arr, smoothing_factor, nudging_factor, generation, total_generations):
+
+    def mutate_smooth(individual, smoothing_factor):
+        return
+    def mutate_nudge(individual, nudging_factor):
+        return
+
+    if generation < total_generations * 0.2:
+        return mutate_smooth(individual, smoothing_factor)
+    else:
+        threshold = np.percentile(radius_arr, 10) #pick top 10% smallest radii --> sharpest turns
+        corner_indices = np.where(radius_arr <= threshold)[0] #find corners based on radius
+        
+        if len(corner_indices) > 0:
+            target_idx = np.random.choice(corner_indices)
+            return mutate_nudge(individual, target_idx, nudging_factor)
+            
+    return individual
 
 def init_track():
     global track_name
@@ -93,7 +123,14 @@ def create_random_bsp(mesh, track_name, center_line_properties):
     radius = np.array(radius) / pixels_per_meter
     return rand_bsp, radius
 
-def plot_just_spline(spline):
+def plot_just_best_line(spline, mesh):
+    left_boundary = mesh[:,0,:]
+    right_boundary = mesh[:,-1,:]
+
+    plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
+    plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
+
+
     plt.plot(spline[:,0], spline[:,1], 'b-')
     plt.axis('equal')
     plt.show()
@@ -113,15 +150,16 @@ def main():
 
     pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
 
-    pop_size = 100
+    pop_size = 25 #100
+    print('Initializing population...')
     population = initialize_population(pop_size)
     elite_rate = 0.1
     crossover_rate = 0.8
     mut_rate = 0.1
     mut_strength = 0.05
     
-    generations = 50
-
+    generations = 5 #50
+    print('\nStarting Genetic Algorithm...')
     for generation in range(generations):
         population = evaluate_population(population)
         elites = population[:int(pop_size * elite_rate)]
@@ -136,21 +174,22 @@ def main():
             radius = np.array(radius) / pixels_per_meter
             vel, t = find_track_time(child, radius, pixels_per_meter)
             new_population.append((child, t, vel))
+
         
         population = new_population
 
-        best_time = min([p[1] for p in population])
+        best_time = min([p[1][-1] for p in population])
         print(f"Gen {generation}: Best time = {best_time:.3f}s")
 
     print('time taken: ', time.time() - start_time)
     try:
-        best = min(population, key=lambda x: x[1])  # returns tuple (spline, time, velocity)
+        best = min(population, key=lambda x: x[1][-1])  # returns tuple (spline, time, velocity)
         best_spline = best[0]
         best_time = best[1]
         best_vels = best[2]
     except IndexError: print(best)
 
-    plot_just_spline(best_spline)
+    plot_just_best_line(best_spline, mesh)
     plot_velocity_colored_line(best_spline, best_vels)
 
 

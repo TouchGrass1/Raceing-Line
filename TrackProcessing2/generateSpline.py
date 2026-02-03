@@ -170,7 +170,7 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
         current_idx = random.randint(start, end)
         rand_pts_idx.append(current_idx)
     
-    print('mean index: ',mean/len(rand_pts_idx))
+    #print('mean index: ',mean/len(rand_pts_idx))
     for i in range(len(rand_pts_idx)-2, -1, -1):
         idx_old = rand_pts_idx[i+1]
         idx_new = rand_pts_idx[i]
@@ -386,7 +386,7 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     #plot_approx(approx, binary)
     #plot_spline(center_line, approx)
     #plot_spline(rand_bsp, random_pts)
-    plot_bspline(rand_bsp, random_pts, mesh, curvature)
+    #plot_bspline(rand_bsp, random_pts, mesh, curvature)
     #plot_boundaries(mesh, center_line)
     #plot_mesh(mesh, img_arr)
     #plot_everything(mesh, center_line, approx, rand_bsp, random_pts)
@@ -413,4 +413,4 @@ if __name__ == "__main__":
         'real_track_width': 12
         }
     }
-    main('monza', real_properties)
+    main('silverstone', real_properties)
