@@ -23,13 +23,17 @@ def findMaxVelocity(radius, mass, density):
 def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType):
     n = len(maxVelArr)
     vel = np.zeros(n)
-    rand_bsp = np.vstack([rand_bsp, rand_bsp[0]])
-    x, y = rand_bsp[:, 0], rand_bsp[:, 1]
+    #rand_bsp = np.vstack([rand_bsp, rand_bsp[0]])
+    x = np.append(rand_bsp[:, 0], rand_bsp[0, 0])
+    y = np.append(rand_bsp[:, 1], rand_bsp[0, 1])
+    #x, y = rand_bsp[:, 0], rand_bsp[:, 1]
     dx = np.hypot(np.diff(x), np.diff(y))
     dx = dx/pixels_per_meter
 
     # Forward pass acceleration limit
-    vel[0] = 1
+    if maxVelArr[0] < PhysicsConsts['VELOCITY_MAX'].value: vel[0] = maxVelArr[0]
+    else: vel[0] = PhysicsConsts['VELOCITY_MAX'].value
+        
     for i in range(1, n):
         u = vel[i-1]
         downForce = updateVar.updateDownforce(u)
@@ -40,34 +44,34 @@ def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, 
         staticFriction = updateVar.updateStaticForceFriction(tyreCoeff, mass, downForce)
 
         # Accelerate but cap by max velocity
-        a = min(staticFriction/mass, PhysicsConsts['ACCEL_MAX'].value, finalForce/mass)
-
-        coeff = [0.5*a, u, -dx[i]]
-        dt = max(np.roots(coeff))
-        vel[i] = min(maxVelArr[i], u + a*dt)
+        a_max = min(staticFriction/mass, PhysicsConsts['ACCEL_MAX'].value, finalForce/mass)
+        vel[i] = min(maxVelArr[i], np.sqrt(u**2 + 2 * a_max * dx[i-1]))
 
     # Backward pass deceleration limit
-    for i in range(n-2, -1, -1):
+    for i in range(n-1, -1, -1):
         # Ensure deceleration limit isn’t exceeded
-        v = vel[i+1]
-        u = vel[i]
+        next_idx = (i + 1) % n
+        v_next = vel[next_idx]
         dist = dx[i]
 
         max_decel = PhysicsConsts['ACCEL_MIN'].value 
-        
-        u = np.sqrt(v**2 - 2 * max_decel * dist)
-        
-        vel[i] = min(vel[i], u)
+        # u^2 = v^2 - 2as (where a is negative)
+        possible_u = np.sqrt(v_next**2 - 2 * max_decel * dist)
+        vel[i] = min(vel[i], possible_u)
 
 
     return vel
 
 def calculateTrackTime(vel, rand_bsp, pixels_per_meter):
-    x, y = rand_bsp[:, 0], rand_bsp[:, 1]
+    x = np.append(rand_bsp[:, 0], rand_bsp[0, 0])
+    y = np.append(rand_bsp[:, 1], rand_bsp[0, 1])
 
-    distances = np.hypot(np.diff(x), np.diff(y)) #pythag
-    distances = distances/pixels_per_meter
-    t = np.concatenate(([0], np.cumsum(distances/vel[:len(vel)-1])))
+    distances = np.hypot(np.diff(x), np.diff(y)) /pixels_per_meter #pythag
+    avg_vels = (vel + np.roll(vel, -1)) / 2 #using roll as it faster than looping and ensures circular
+    segment_times = distances / avg_vels
+    
+    t = np.concatenate(([0], np.cumsum(segment_times))) #cumulative times
+
     return t
 
 def caculateAccelerations(vel, t):     
@@ -270,7 +274,7 @@ def run():
 
 
 
-run()
+#run()
 #generateSpline.plot_spline(rand_bsp, random_pts, None)
 #generateSpline.plot_bspline(rand_bsp, random_pts, mesh, props["curvature"])
 #generateSpline.plot_everything(mesh, center_line, center_line_ctrpts, rand_bsp, random_pts)

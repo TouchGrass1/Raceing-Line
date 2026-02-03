@@ -39,6 +39,8 @@ def catmull_rom_spline(points):
     sample_per_segments = 20
 
     points = np.array(points, dtype=float)
+    if np.allclose(points[0], points[-1]):
+        points = points[:-1]
     points = np.vstack([points[-1], points, points[0], points[1]]) #ensure closed curve by adding the last point and the start and the first two points to the end
     num_points = len(points) # number of control points 
     result = []
@@ -145,7 +147,20 @@ def b_spline(pts, sample_size):
     x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
     dx, dy = interpolate.splev(u_fine, tck, der=1)
     d2x, d2y = interpolate.splev(u_fine, tck, der=2)
-    curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5 
+    curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
+
+    pts = np.column_stack([x_fine, y_fine])
+    if not np.allclose(pts[0], pts[-1]):
+        pts = np.vstack([pts, pts[0]])
+        x = pts[:,0]
+        y = pts[:,1]
+        tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree
+        u_fine = np.linspace(0, 1, sample_size) #number of points to have on the radius
+        x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
+        dx, dy = interpolate.splev(u_fine, tck, der=1)
+        d2x, d2y = interpolate.splev(u_fine, tck, der=2)
+        curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
+
     return np.column_stack([x_fine, y_fine]), curvature
 
 
@@ -160,7 +175,7 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
     mean = 0
     for i in range(0, len(mesh), step):
         target_idx = (num_pts_across) // 2 #the middle
-        bias_factor = 0.1 # how much it pulls towards the center
+        bias_factor = 0.01 # how much it pulls towards the center
         steered_center = (current_idx * (1 - bias_factor)) + (target_idx * bias_factor)
         
         start = max(0, int(steered_center - rangeVal))
@@ -170,7 +185,7 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
         current_idx = random.randint(start, end)
         rand_pts_idx.append(current_idx)
     
-    #print('mean index: ',mean/len(rand_pts_idx))
+    rand_pts_idx[-1] = rand_pts_idx[0] #ensure closed loop
     for i in range(len(rand_pts_idx)-2, -1, -1):
         idx_old = rand_pts_idx[i+1]
         idx_new = rand_pts_idx[i]
@@ -348,9 +363,9 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
 
     num_points_across= 50
-    mesh_res = 1 #the bigger the number the lower the resolution
+    mesh_res = 4 #the bigger the number the lower the resolution
     
-    rangepercent = 0.07 #the lower the number the lower the range --> less spiky curve between 0,1
+    rangepercent = 0.1 #the lower the number the lower the range --> less spiky curve between 0,1
 
     #running functions
 
@@ -371,6 +386,9 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
     
     random_pts = random_points(mesh, num_points_across, rangepercent, sample_size=1000)
+
+    if not np.allclose(random_pts[0], random_pts[-1]):
+        random_pts = np.vstack([random_pts, random_pts[0]]) #temp double double check it is a close loop
 
     rand_bsp, curvature = b_spline(random_pts, sample_size= 1000)
     radius = 1/abs(curvature)
