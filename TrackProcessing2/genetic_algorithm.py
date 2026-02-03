@@ -5,9 +5,9 @@ from math import hypot
 import random
 import time
 import os
-from FindTrackTime import main as find_track_time
-from FindTrackTime import plot_velocity_colored_line
-import generateSpline
+from TrackProcessing2.FindTrackTime import main as find_track_time
+from TrackProcessing2.FindTrackTime import plot_velocity_colored_line
+import TrackProcessing2.generateSpline as generateSpline
 from enum import Enum
 import matplotlib.pyplot as plt
 
@@ -44,7 +44,7 @@ real_properties = {
     }
 }
 
-def initialize_population(pop_size):
+def initialize_population(pop_size, track_name):
     population = []
     for i in range(pop_size):
         print(f'\r individual number: {i}', end='')
@@ -138,10 +138,7 @@ def mutate(individual, radius_arr, smoothing_factor, nudging_factor, generation,
             
     return individual
 
-def init_track():
-    global track_name
-    track_list = ["monza", "silverstone", "qatar", "90degturn"]
-    track_name = track_list[1]
+def init_track(track_name):
     return generateSpline.main(track_name, real_properties)
 
 def create_random_bsp(mesh, track_name, center_line_properties):
@@ -150,6 +147,8 @@ def create_random_bsp(mesh, track_name, center_line_properties):
     if not np.allclose(random_pts[0], random_pts[-1]):
         random_pts = np.vstack([random_pts, random_pts[0]]) #temp double double check it is a close loop
     rand_bsp, curvature = generateSpline.b_spline(random_pts, sample_size)
+    if not np.allclose(rand_bsp[0], rand_bsp[-1]):
+        rand_bsp = np.vstack([rand_bsp, rand_bsp[0]])
     #rand_bsp = generateSpline.catmull_rom_spline(random_pts)
     #props = generateSpline.spline_properties(rand_bsp)
 
@@ -182,14 +181,14 @@ def plot_times(best_time_arr):
     plt.show()
     
 
-def main():
+def main(track_name):
     global mesh
     global center_line_properties
     global pixels_per_meter
 
     
     start_time = time.time()
-    center_line_ctrpts, center_line, center_line_properties, mesh = init_track()
+    center_line_ctrpts, center_line, center_line_properties, mesh = init_track(track_name)
 
     best_time_arr = []
 
@@ -197,7 +196,7 @@ def main():
 
     pop_size = 50 #50
     print('Initializing population...')
-    population = initialize_population(pop_size)
+    population = initialize_population(pop_size, track_name)
     elite_rate = 0.1
     mut_rate = 0.4
     smoothing_factor = 0.1
@@ -245,9 +244,12 @@ def main():
         best_vels = best[2]
     except IndexError: print(best)
 
-    plot_just_best_line(best_spline, mesh)
-    plot_velocity_colored_line(best_spline, best_vels)
-    plot_times(best_time_arr)
+    #plot_just_best_line(best_spline, mesh)
+    #plot_velocity_colored_line(best_spline, best_vels)
+    #plot_times(best_time_arr)
+    return best_spline, best_time, best_vels, mesh
+    
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': 
+    main(track_name='silverstone')

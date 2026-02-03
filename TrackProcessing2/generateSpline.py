@@ -15,6 +15,31 @@ from pathlib import Path
 from PIL import Image
 
 
+def define_starting_point(img):
+    BLUE = np.array([0, 81, 186, 255])
+    GREEN = np.array([0, 180, 75, 255])
+    imgarray = np.array(img)
+
+    blue_mask = np.all(imgarray == BLUE, axis=-1) #create a mask, faster than looping
+    green_mask = np.all(imgarray == GREEN, axis=-1)
+
+    blue_coords = np.argwhere(blue_mask) #get the coords of the pixels that match the mask
+    green_coords = np.argwhere(green_mask)
+
+    if len(blue_coords) == 0 or len(green_coords) == 0:
+        print("Error: there is a start point missing")
+        return None
+
+
+    p1 = blue_coords.mean(axis=0) # [y, x] calculates the mean posistion if more than one pixel is found
+    p2 = green_coords.mean(axis=0) # [y, x]
+
+    mid_y = (p1[0] + p2[0]) / 2 #mid point of both start points
+    mid_x = (p1[1] + p2[1]) / 2
+
+    print(f"Start Midpoint: x={mid_x}, y={mid_y}")
+    return np.array([mid_x, mid_y])
+
 
 def generate_centerLine(img_arr):
     binary = img_arr < 128  # invert image
@@ -160,7 +185,7 @@ def b_spline(pts, sample_size):
         dx, dy = interpolate.splev(u_fine, tck, der=1)
         d2x, d2y = interpolate.splev(u_fine, tck, der=2)
         curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
-
+    
     return np.column_stack([x_fine, y_fine]), curvature
 
 
@@ -199,7 +224,7 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
     for i, row in enumerate(range(0, len(mesh), step)):
         actual_pt_idx = rand_pts_idx[i]
         rand_pts.append(mesh[row][actual_pt_idx])
-
+    #rand_pts.append(rand_pts[0]) #close loop
     return np.array(rand_pts)
 
 
@@ -223,7 +248,7 @@ def plot_mesh(mesh, img_arr):
     plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
     plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
     
-    plt.imshow(img_arr, cmap='gray')
+    #plt.imshow(img_arr, cmap='gray')
     plt.axis('equal')
     plt.show()
 
@@ -270,6 +295,7 @@ def plot_spline(curve, approx):
     #plt.imshow(img_arr, cmap='gray')
     plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
     plt.plot(curve[:,0], curve[:,1], 'b-', label='Centripetal Catmull–Rom')
+    plt.plot(curve[0,0], curve[0,1], 'gs', label='Start Point')
     plt.legend()
     plt.axis('equal')
     plt.show()
@@ -363,7 +389,7 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
 
     num_points_across= 50
-    mesh_res = 4 #the bigger the number the lower the resolution
+    mesh_res = 1 #the bigger the number the lower the resolution
     
     rangepercent = 0.1 #the lower the number the lower the range --> less spiky curve between 0,1
 
@@ -376,12 +402,17 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
     center_line = catmull_rom_spline(approx)
     center_line_properties = spline_properties(center_line)
-
     convertion = center_line_properties['length'] / real_properties[track_name]['real_track_length'] #num of pixels per meter
     track_width_pixels = convertion * real_properties[track_name]['real_track_width']
     print('num of pixels per meter: ', convertion)
 
     
+    start = define_starting_point(img_composite)
+    if start is not None:
+        distances = np.linalg.norm(center_line - start, axis=1)
+        closest_idx = np.argmin(distances)
+        print('closest: ', closest_idx)
+        center_line = np.roll(center_line, -closest_idx, axis=0)
     mesh = generate_mesh(center_line, track_width_pixels, mesh_res, num_points_across, center_line_properties['normal']) 
 
     
@@ -398,7 +429,7 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     #print('cv2s arclength feature vs arc-length params:', cv2.arcLength(center_line.astype(np.float32).reshape(-1,1,2), True), 'vs', center_line_properties['length'])
 
     
-
+    
     #plot_img(img_arr)
     #plot_skeleton(skeleton_points, binary)
     #plot_approx(approx, binary)

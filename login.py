@@ -9,8 +9,8 @@ from colours import colour_palette
 def main():
     # Initialise screen
     pg.init()
-    width = 1920
-    height = 1080
+    width = 1280 #1920
+    height = 720 #1080
     screen = pg.display.set_mode((width, height))
     pg.display.set_caption('Racing Lines')
 
@@ -20,19 +20,21 @@ def main():
     background.fill(colour_palette['BG_GREY'].value)
 
     # Display some text
-
     welcome = Text((width/2 - 100), (height//4), "Welcome", 72) 
     welcome.draw(background)
 
     logo = pg.image.load("Assets/F1logo.png").convert_alpha()
-    input = EntryBox(700, 800, 500, 50)
+    input = EntryBox((700/1920) * width, (800/1080)*height, (500/1920) * width, (50/1080)*height)
     # Event loop
     while True:
         for event in pg.event.get():
             if event.type == pg.MOUSEBUTTONDOWN:
                 input.handle_event(event)
             if event.type == pg.KEYDOWN:
-                input.handle_event(event)
+                result = input.handle_event(event)
+                if result is not None:
+                    if result== True:
+                        return True
             if event.type == QUIT:
                 return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
@@ -43,4 +45,5 @@ def main():
         pg.display.flip()
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__': 
+    main()

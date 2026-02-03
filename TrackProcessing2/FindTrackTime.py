@@ -1,12 +1,12 @@
 #import generateSpline
 
-from Physics import *
+from TrackProcessing2.Physics import *
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 import numpy as np
-import generateSpline
+import TrackProcessing2.generateSpline as generateSpline
 
 
 def findMaxVelocity(radius, mass, density):
@@ -244,7 +244,7 @@ real_properties = {
 def init_track():
     global track_name
     track_list = ["monza", "silverstone", "qatar", "90degturn"]
-    track_name = track_list[1]
+    track_name = track_list[2]
     return generateSpline.main(track_name, real_properties)
 
 def create_random_bsp(mesh, track_name, center_line_properties):
@@ -266,10 +266,10 @@ def run():
     racing_line, radius = create_random_bsp(mesh, track_name, center_line_properties)
     vel, t = main(racing_line, radius, pixels_per_meter)
     #a = caculateAccelerations(vel, t)
-    #print(f"time taken: {int(t[-1]//60)}: {t[-1]%60:.3f}")
+    print(f"time taken: {int(t[-1]//60)}: {t[-1]%60:.3f}")
     
 
-    #plot_velocity_coloured_line_v2(racing_line, vel, mesh)
+    plot_velocity_coloured_line_v2(racing_line, vel, mesh)
     #plotVelocity(vel, a)
 
 
