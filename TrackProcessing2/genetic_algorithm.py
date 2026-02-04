@@ -10,7 +10,7 @@ from TrackProcessing2.FindTrackTime import plot_velocity_colored_line
 import TrackProcessing2.generateSpline as generateSpline
 from enum import Enum
 import matplotlib.pyplot as plt
-
+from TrackProcessing2.config import config, real_properties
 
 
 #CONSTANTS
@@ -24,25 +24,6 @@ class colour_palette(Enum):
     RED2 = (187, 57, 59)
     LINE_GREY = (42, 45, 49)
     SUBTLE_GREY = (37, 40, 44)
-
-real_properties = {
-'silverstone': {
-    'real_track_length': 5891, #meters
-    'real_track_width': 12 #meters
-    },
-'monza': {
-    'real_track_length': 5793,
-    'real_track_width': 12
-    },
-'qatar': {
-    'real_track_length': 5419,
-    'real_track_width': 12
-    },
-'90degturn': {
-    'real_track_length': 1000,
-    'real_track_width': 12
-    }
-}
 
 def initialize_population(pop_size, track_name):
     population = []
@@ -142,7 +123,7 @@ def init_track(track_name):
     return generateSpline.main(track_name, real_properties)
 
 def create_random_bsp(mesh, track_name, center_line_properties):
-    sample_size=1000
+    sample_size= config["sample_size"]
     random_pts = generateSpline.random_points(mesh, num_pts_across=50, rangepercent=0.02, sample_size=sample_size)
     if not np.allclose(random_pts[0], random_pts[-1]):
         random_pts = np.vstack([random_pts, random_pts[0]]) #temp double double check it is a close loop
@@ -194,15 +175,15 @@ def main(track_name):
 
     pixels_per_meter = center_line_properties['length'] / real_properties[track_name]['real_track_length']
 
-    pop_size = 50 #50
+    pop_size = config['pop_size'] #50
     print('Initializing population...')
     population = initialize_population(pop_size, track_name)
-    elite_rate = 0.1
-    mut_rate = 0.4
-    smoothing_factor = 0.1
-    nudging_factor = 2
+    elite_rate = config['elite_rate']
+    mut_rate = config['mut_rate']
+    smoothing_factor = config['smoothing_factor']
+    nudging_factor = config['nudging_factor']
     
-    total_generations = 50 #50
+    total_generations = config['total_generations'] #50
     print('\nStarting Genetic Algorithm...')
     for generation in range(total_generations):
         population = evaluate_population(population)
@@ -232,7 +213,7 @@ def main(track_name):
         print(f"Gen {generation}: Best time = {best_time:.3f}s")
         print('Varience: ', np.var(best_time_arr[-5:]))
         print('-----------------------')
-        if np.var(best_time_arr[-5:]) < 0.05 and generation > 15:
+        if np.var(best_time_arr[-5:]) < 0.05 and generation > config["min_generations"]:
             break #stop early if varience is low
 
     t = time.time() - start_time
@@ -251,5 +232,5 @@ def main(track_name):
     
 
 
-if __name__ == '__main__': 
-    main(track_name='silverstone')
+# if __name__ == '__main__': 
+#     main(track_name='silverstone')

@@ -9,11 +9,10 @@ from matplotlib.collections import LineCollection
 from skimage.morphology import skeletonize
 from scipy import interpolate
 
-
-
 from pathlib import Path
 from PIL import Image
 
+from TrackProcessing2.config import config, real_properties
 
 def define_starting_point(img):
     BLUE = np.array([0, 81, 186, 255])
@@ -366,7 +365,7 @@ def return_Img_Arr(track_name):
     img = Image.open(filepath).convert('L') # ensure grayscale
     return np.asarray(img)
 
-def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangepercent=0.05):
+def main(track_name, real_properties):
     #loading image
     _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -388,10 +387,10 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     #variables
 
 
-    num_points_across= 50
-    mesh_res = 1 #the bigger the number the lower the resolution
-    
-    rangepercent = 0.1 #the lower the number the lower the range --> less spiky curve between 0,1
+    num_points_across= config["num_points_across"]
+    mesh_res = config["mesh_res"] #the bigger the number the lower the resolution   
+    rangepercent = config["rangepercent"] #the lower the number the lower the range --> less spiky curve between 0,1
+    sample_size = config["sample_size"]
 
     #running functions
 
@@ -407,21 +406,21 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     print('num of pixels per meter: ', convertion)
 
     
-    start = define_starting_point(img_composite)
-    if start is not None:
-        distances = np.linalg.norm(center_line - start, axis=1)
-        closest_idx = np.argmin(distances)
-        print('closest: ', closest_idx)
-        center_line = np.roll(center_line, -closest_idx, axis=0)
+    # start = define_starting_point(img_composite)
+    # if start is not None:
+    #     distances = np.linalg.norm(center_line - start, axis=1)
+    #     closest_idx = np.argmin(distances)
+    #     print('closest: ', closest_idx)
+    #     center_line = np.roll(center_line, -closest_idx, axis=0)
     mesh = generate_mesh(center_line, track_width_pixels, mesh_res, num_points_across, center_line_properties['normal']) 
 
     
-    random_pts = random_points(mesh, num_points_across, rangepercent, sample_size=1000)
+    random_pts = random_points(mesh, num_points_across, rangepercent, sample_size)
 
     if not np.allclose(random_pts[0], random_pts[-1]):
         random_pts = np.vstack([random_pts, random_pts[0]]) #temp double double check it is a close loop
 
-    rand_bsp, curvature = b_spline(random_pts, sample_size= 1000)
+    rand_bsp, curvature = b_spline(random_pts, sample_size)
     radius = 1/abs(curvature)
     #print(repr(random_pts))
  
@@ -443,23 +442,6 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
 
 
-if __name__ == "__main__":
-    real_properties = {
-    'silverstone': {
-        'real_track_length': 5891, #meters
-        'real_track_width': 20 #meters
-        },
-    'monza': {
-        'real_track_length': 5793,
-        'real_track_width': 12
-        },
-    'qatar': {
-        'real_track_length': 5419,
-        'real_track_width': 12
-        },
-    '90degturn': {
-        'real_track_length': 1000,
-        'real_track_width': 12
-        }
-    }
-    main('silverstone', real_properties)
+# if __name__ == "__main__":
+
+#     main('monza', real_properties)

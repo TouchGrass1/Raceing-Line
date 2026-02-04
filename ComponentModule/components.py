@@ -154,11 +154,14 @@ class Slider:
         self.min = min_val
         self.max = max_val
         self.val = initial_val
+        self.target_val = initial_val
         self.oldval = initial_val
         self.label = label
         self.dragging = False
         self.handle_x = x + (initial_val - min_val)/(max_val - min_val) * w
         self.font = pg.font.Font(None, 30)
+        self.lerp_speed = 5
+        
 
     def draw(self, screen, font):
         # Draw slider track
@@ -188,17 +191,23 @@ class Slider:
             rect = pg.Rect(self.rect.left, self.rect.top, x, self.rect.height )
             pg.draw.rect(screen, colour_pallete['red2'], rect, border_radius=23)
             
-            val_text = self.font.render(f"{self.val*100:.2n}%", 1, colour_pallete['white'])
+            val_text = self.font.render(f"{self.val*100}%", 1, colour_pallete['white'])
             pos = (self.rect.right - val_text.get_width(), self.rect.bottom + val_text.get_height())
             screen.blit(val_text, pos)
 
+    def smooth_update(self, target, dt):
+        if not self.active:
+            diff = target - self.val
+            self.val += diff * self.lerp_speed * dt
+            
+            self.handle_x = self.rect.left + ((self.val - self.min) / (self.max - self.min)) * self.rect.width #LERP
 
     def update_value(self, mouse_x):
         if self.active:
             self.handle_x = np.clip(mouse_x, self.rect.left, self.rect.right)
             self.val = self.min + (self.handle_x - self.rect.left)/self.rect.width * (self.max - self.min)
-        else:
-            pass
+            self.target_val = self.val
+
 
 class Text:
     def __init__(self, x, y, text, font_size):

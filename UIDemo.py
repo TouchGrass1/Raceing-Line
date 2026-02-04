@@ -101,6 +101,10 @@ class RightPanel(BasePanel):
 
 
 #
+def reset_sim():
+    start_time = time.time()   
+    return start_time
+
 def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset):
 
     left_boundary = mesh[:, 0, :]
@@ -203,8 +207,7 @@ def caculateAccelerations(vel, t):
 
 def get_currentThrottle(current_time, time_array, acceleration_array):
     sim_time = current_time % time_array[-1]
-    print(time_array.shape, acceleration_array.shape)
-    current_acceleration = np.interp(sim_time, time_array, acceleration_array)
+    current_acceleration = np.interp(sim_time, time_array[:-1], acceleration_array)
     if current_acceleration > 0:
         current_throttle = 1
 
@@ -214,6 +217,7 @@ def get_currentThrottle(current_time, time_array, acceleration_array):
 def main():
     # Initialise screen
     pg.init()
+    clock = pg.time.Clock()
     start_time = time.time()
 
     screen = pg.display.set_mode(flags=pg.FULLSCREEN)
@@ -272,6 +276,8 @@ def main():
                 return
             if event.type == MOUSEBUTTONDOWN:
                 print(pg.mouse.get_pos())
+                if left_panel.reset_btn.rect.collidepoint(event.pos):
+                    start_time = reset_sim()
 
             left_panel.handle_event(event)
             track_dropdown.handle_event(event)
@@ -314,11 +320,11 @@ def main():
             draw_car(screen, pos, angle)
             throttle = get_currentThrottle(current_time, best_time, acceleration)
             right_panel.handle_event(throttle, (1-throttle))
-            #pg.draw.circle(screen, colour_palette['ORANGE'].value, (pos), 9)
+
+
         screen.set_clip(None)
   
-
-
+        clock.tick(60)
         pg.display.flip()
 
 
