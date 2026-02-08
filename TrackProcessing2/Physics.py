@@ -28,7 +28,7 @@ class PhysicsConsts(Enum):
 class PhysicsFormulas:
     def downforceEquation(x): #x = velocity
         PhysicsValidator.validate_speed(x)
-        return 0.174686*(x**2) + 25.6869*x + 101.731
+        return 0.174686*(x**2) + 25.6869*x
     def lateralForceEquation(mass, velocity, radius):
         PhysicsValidator.validate_mass(mass)
         PhysicsValidator.validate_speed(velocity)
@@ -73,7 +73,15 @@ class PhysicsFormulas:
             if vel > PhysicsConsts['VELOCITY_MAX'].value:
                 run = False
         return thrust, vel 
-
+    def maxThrustAlgebraic(density): #finds when thrust == drag
+        P = PhysicsConsts['POWER'].value
+        A = 1.5156
+        Cd = 0.9
+        
+        # Calculate the cube root
+        v_max = ( (2 * P) / (density * A * Cd) )**(1/3)
+        
+        return np.clip(v_max, 0, PhysicsConsts['VELOCITY_MAX'].value)
 
 class updateVar:
     def updateMass(noLap, maxNoLap): #end of every lap
@@ -94,7 +102,7 @@ class updateVar:
 
     def updateThrust(vel):
         PhysicsValidator.validate_speed(vel)
-        if vel == 0: return PhysicsConsts['POWER'].value
+        if vel < 1.0: vel = 1.0
         return PhysicsConsts['POWER'].value/vel
 
     def updatePressure(height, temp): #height (m) temp(deg) #only once

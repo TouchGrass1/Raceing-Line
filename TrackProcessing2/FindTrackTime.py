@@ -9,26 +9,18 @@ import numpy as np
 import TrackProcessing2.generateSpline as generateSpline
 
 
-def findMaxVelocity(radius, mass, density):
-   
-    downforce = 2000 #N
-    mu = 1.5
-    maxVerticalThrust, maxVerticalVel = PhysicsFormulas.maxThrustEquation(density)
+def findMaxVelocity(radius, mass, density, mu):
+    downforce = 2000 #M
+    maxVerticalVel = PhysicsFormulas.maxThrustAlgebraic(density)
     maxLateralForceEquation = PhysicsFormulas.maxLateralForceEquation(mu, mass, downforce)
     maxLateralForceEquation = PhysicsFormulas.maxLateralAccelerationEquation(maxLateralForceEquation, mass)
     maxVel = np.sqrt((maxLateralForceEquation*radius) / mass)
     np.clip(maxVel, 0, maxVerticalVel)
     return maxVel
 
-def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType):
+def findVelocities(maxVelArr, dists, mass, density, noLap, tyreType):
     n = len(maxVelArr)
     vel = np.zeros(n)
-    #rand_bsp = np.vstack([rand_bsp, rand_bsp[0]])
-    x = np.append(rand_bsp[:, 0], rand_bsp[0, 0])
-    y = np.append(rand_bsp[:, 1], rand_bsp[0, 1])
-    #x, y = rand_bsp[:, 0], rand_bsp[:, 1]
-    dx = np.hypot(np.diff(x), np.diff(y))
-    dx = dx/pixels_per_meter
 
     # Forward pass acceleration limit
     if maxVelArr[0] < PhysicsConsts['VELOCITY_MAX'].value: vel[0] = maxVelArr[0]
@@ -45,14 +37,14 @@ def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, 
 
         # Accelerate but cap by max velocity
         a_max = min(staticFriction/mass, PhysicsConsts['ACCEL_MAX'].value, finalForce/mass)
-        vel[i] = min(maxVelArr[i], np.sqrt(u**2 + 2 * a_max * dx[i-1]))
+        vel[i] = min(maxVelArr[i], np.sqrt(u**2 + 2 * a_max * dists[i-1]))
 
     # Backward pass deceleration limit
     for i in range(n-1, -1, -1):
         # Ensure deceleration limit isn’t exceeded
         next_idx = (i + 1) % n
         v_next = vel[next_idx]
-        dist = dx[i]
+        dist = dists[i]
 
         max_decel = PhysicsConsts['ACCEL_MIN'].value 
         # u^2 = v^2 - 2as (where a is negative)
@@ -62,13 +54,9 @@ def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, 
 
     return vel
 
-def calculateTrackTime(vel, rand_bsp, pixels_per_meter):
-    x = np.append(rand_bsp[:, 0], rand_bsp[0, 0])
-    y = np.append(rand_bsp[:, 1], rand_bsp[0, 1])
-
-    distances = np.hypot(np.diff(x), np.diff(y)) /pixels_per_meter #pythag
+def calculateTrackTime(vel, dists):
     avg_vels = (vel + np.roll(vel, -1)) / 2 #using roll as it faster than looping and ensures circular
-    segment_times = distances / avg_vels
+    segment_times = dists / avg_vels
     
     t = np.concatenate(([0], np.cumsum(segment_times))) #cumulative times
 
@@ -162,26 +150,32 @@ def plot_velocity_coloured_line_v2(points, velocities, mesh):
 
 
 
-def main(rand_bsp, radius, pixels_per_meter):
-    
-    mass = 900 #KG
+def main(rand_bsp, radius, pixels_per_meter, variables): 
+    mass = variables['mass'] #KG
+    temp = variables['temp'] #deg
+    height = variables['elevation'] #m above sea level
+    noLap = variables['lapNo']
+    tyreType = variables['tyre']
+
     maxNoLap = 70 #maximum number of laps
-    #CONSTANTS - set by user
-    temp = 20 #deg
-    height = 300 #m above sea level
+    
     pressure = updateVar.updatePressure(height, temp)
     density = updateVar.updateDensity(pressure, temp)
-    tyreType = 'SOFT'
 
+    tyre_mu = updateVar.updateTyreWear(tyreType, noLap)
+
+    x_loop = np.append(rand_bsp[:, 0], rand_bsp[0, 0])
+    y_loop = np.append(rand_bsp[:, 1], rand_bsp[0, 1])
+    dists = np.hypot(np.diff(x_loop), np.diff(y_loop)) / pixels_per_meter
     #EVERY  LAP STUFF
-    noLap = 1 #first lap
+    
     mass = updateVar.updateMass(noLap, maxNoLap)
-    #update tyre wear...
 
 
-    maxVelArr = findMaxVelocity(radius, mass, density)
-    vel = findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType)
-    t  = calculateTrackTime(vel, rand_bsp, pixels_per_meter)
+    maxVelArr = findMaxVelocity(radius, mass, density, tyre_mu)
+
+    vel = findVelocities(maxVelArr, dists, mass, density, noLap, tyreType)
+    t  = calculateTrackTime(vel, dists)
     print(f"lap time: {int(t[-1]//60)}: {t[-1]%60:.3f}")
     return vel, t
 

@@ -192,14 +192,14 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
     rand_pts_idx = []
     rangeVal = rangepercent*num_pts_across
     step = ceil(len(mesh) / sample_size)
-
+    bias_factor = config["bias_factor"] # how much it pulls towards the center
     num_pts_across -= 1 #to ensure not out of range
     current_idx = random.randint(0, num_pts_across)
 
     mean = 0
     for i in range(0, len(mesh), step):
         target_idx = (num_pts_across) // 2 #the middle
-        bias_factor = 0.01 # how much it pulls towards the center
+        
         steered_center = (current_idx * (1 - bias_factor)) + (target_idx * bias_factor)
         
         start = max(0, int(steered_center - rangeVal))

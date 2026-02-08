@@ -3,16 +3,18 @@ config = {
     "num_pts_across":50, 
     "rangepercent":0.02, #the lower the number the lower the range --> less spiky curve between 0,1
     "sample_size": 1000, #number of random points to sample on the track for BSP generation
-    "pop_size": 1, #50
-    "elite_rate": 0.1, #percentage of top individuals to carry over to next generation
-    "mut_rate": 0.4, #mutation rate
+    "pop_size": 50, #50
+    "elite_rate": 0.05, #percentage of top individuals to carry over to next generation
+    "mut_rate": 0.3, #mutation rate
     "smoothing_factor": 0.1, #the higher the number the more smoothing
-    "nudging_factor": 2, #the higher the number the more aggressive the nudge
+    "nudging_factor": 3, #the higher the number the more aggressive the nudge
     
-    "total_generations": 1, #50 
+    "total_generations": 50, #50 
+    "total_repeats": 1, #20 number of times to repeat the whole GA 
     "min_generations": 15, #minimum number of generations to run before checking for convergence
-    "num_points_across": 50, #number of points to sample across the width of the track
+    "num_points_across": 60, #number of points to sample across the width of the track
     "mesh_res": 1, #the bigger the number the lower the resolution
+    "bias_factor": 0.05 # how much it pulls towards the center
 }
 
 real_properties = {
@@ -33,3 +35,24 @@ real_properties = {
         'real_track_width': 12
         }
     }
+
+default_variables = {
+    'track': 'silverstone',
+    'mass': 988,
+    'weather': 'dry',
+    'tyre': 'SOFT',
+    'lapNo': 1,
+    'elevation': 0,
+    'temp': 20
+}
+
+variable_options = {
+    'track': ['silverstone', 'monza', 'qatar', '90degturn'],
+    'mass': [878, 988],
+    'weather': ['dry', 'wet'],
+    'tyre': ['SOFT', 'MEDIUM', 'HARD'],
+    'lapNo': [1, 70],
+    'elevation': [-28, 2200],
+    'temp': [0, 45],
+}
+
