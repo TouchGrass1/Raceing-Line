@@ -1,35 +1,31 @@
 #import generateSpline
 
-from Physics import *
+from TrackProcessing2.Physics import *
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 import numpy as np
-import generateSpline
+import TrackProcessing2.generateSpline as generateSpline
 
 
-def findMaxVelocity(radius, mass, density):
-   
-    downforce = 2000 #N
-    mu = 1.5
-    maxVerticalThrust, maxVerticalVel = PhysicsFormulas.maxThrustEquation(density)
+def findMaxVelocity(radius, mass, density, mu):
+    downforce = 2000 #M
+    maxVerticalVel = PhysicsFormulas.maxThrustAlgebraic(density)
     maxLateralForceEquation = PhysicsFormulas.maxLateralForceEquation(mu, mass, downforce)
     maxLateralForceEquation = PhysicsFormulas.maxLateralAccelerationEquation(maxLateralForceEquation, mass)
     maxVel = np.sqrt((maxLateralForceEquation*radius) / mass)
     np.clip(maxVel, 0, maxVerticalVel)
     return maxVel
 
-def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType):
+def findVelocities(maxVelArr, dists, mass, density, noLap, tyreType):
     n = len(maxVelArr)
     vel = np.zeros(n)
-    rand_bsp = np.vstack([rand_bsp, rand_bsp[0]])
-    x, y = rand_bsp[:, 0], rand_bsp[:, 1]
-    dx = np.hypot(np.diff(x), np.diff(y))
-    dx = dx/pixels_per_meter
 
     # Forward pass acceleration limit
-    vel[0] = 1
+    if maxVelArr[0] < PhysicsConsts['VELOCITY_MAX'].value: vel[0] = maxVelArr[0]
+    else: vel[0] = PhysicsConsts['VELOCITY_MAX'].value
+        
     for i in range(1, n):
         u = vel[i-1]
         downForce = updateVar.updateDownforce(u)
@@ -40,34 +36,30 @@ def findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, 
         staticFriction = updateVar.updateStaticForceFriction(tyreCoeff, mass, downForce)
 
         # Accelerate but cap by max velocity
-        a = min(staticFriction/mass, PhysicsConsts['ACCEL_MAX'].value, finalForce/mass)
-
-        coeff = [0.5*a, u, -dx[i]]
-        dt = max(np.roots(coeff))
-        vel[i] = min(maxVelArr[i], u + a*dt)
+        a_max = min(staticFriction/mass, PhysicsConsts['ACCEL_MAX'].value, finalForce/mass)
+        vel[i] = min(maxVelArr[i], np.sqrt(u**2 + 2 * a_max * dists[i-1]))
 
     # Backward pass deceleration limit
-    for i in range(n-2, -1, -1):
+    for i in range(n-1, -1, -1):
         # Ensure deceleration limit isn’t exceeded
-        v = vel[i+1]
-        u = vel[i]
-        dist = dx[i]
+        next_idx = (i + 1) % n
+        v_next = vel[next_idx]
+        dist = dists[i]
 
         max_decel = PhysicsConsts['ACCEL_MIN'].value 
-        
-        u = np.sqrt(v**2 - 2 * max_decel * dist)
-        
-        vel[i] = min(vel[i], u)
+        # u^2 = v^2 - 2as (where a is negative)
+        possible_u = np.sqrt(v_next**2 - 2 * max_decel * dist)
+        vel[i] = min(vel[i], possible_u)
 
 
     return vel
 
-def calculateTrackTime(vel, rand_bsp, pixels_per_meter):
-    x, y = rand_bsp[:, 0], rand_bsp[:, 1]
+def calculateTrackTime(vel, dists):
+    avg_vels = (vel + np.roll(vel, -1)) / 2 #using roll as it faster than looping and ensures circular
+    segment_times = dists / avg_vels
+    
+    t = np.concatenate(([0], np.cumsum(segment_times))) #cumulative times
 
-    distances = np.hypot(np.diff(x), np.diff(y)) #pythag
-    distances = distances/pixels_per_meter
-    t = np.concatenate(([0], np.cumsum(distances/vel[:len(vel)-1])))
     return t
 
 def caculateAccelerations(vel, t):     
@@ -158,26 +150,32 @@ def plot_velocity_coloured_line_v2(points, velocities, mesh):
 
 
 
-def main(rand_bsp, radius, pixels_per_meter):
-    
-    mass = 900 #KG
+def main(rand_bsp, radius, pixels_per_meter, variables): 
+    mass = variables['mass'] #KG
+    temp = variables['temp'] #deg
+    height = variables['elevation'] #m above sea level
+    noLap = variables['lapNo']
+    tyreType = variables['tyre']
+
     maxNoLap = 70 #maximum number of laps
-    #CONSTANTS - set by user
-    temp = 20 #deg
-    height = 300 #m above sea level
+    
     pressure = updateVar.updatePressure(height, temp)
     density = updateVar.updateDensity(pressure, temp)
-    tyreType = 'SOFT'
 
+    tyre_mu = updateVar.updateTyreWear(tyreType, noLap)
+
+    x_loop = np.append(rand_bsp[:, 0], rand_bsp[0, 0])
+    y_loop = np.append(rand_bsp[:, 1], rand_bsp[0, 1])
+    dists = np.hypot(np.diff(x_loop), np.diff(y_loop)) / pixels_per_meter
     #EVERY  LAP STUFF
-    noLap = 1 #first lap
+    
     mass = updateVar.updateMass(noLap, maxNoLap)
-    #update tyre wear...
 
 
-    maxVelArr = findMaxVelocity(radius, mass, density)
-    vel = findVelocities(maxVelArr, rand_bsp, pixels_per_meter, mass, density, noLap, tyreType)
-    t  = calculateTrackTime(vel, rand_bsp, pixels_per_meter)
+    maxVelArr = findMaxVelocity(radius, mass, density, tyre_mu)
+
+    vel = findVelocities(maxVelArr, dists, mass, density, noLap, tyreType)
+    t  = calculateTrackTime(vel, dists)
     print(f"lap time: {int(t[-1]//60)}: {t[-1]%60:.3f}")
     return vel, t
 
@@ -240,7 +238,7 @@ real_properties = {
 def init_track():
     global track_name
     track_list = ["monza", "silverstone", "qatar", "90degturn"]
-    track_name = track_list[1]
+    track_name = track_list[2]
     return generateSpline.main(track_name, real_properties)
 
 def create_random_bsp(mesh, track_name, center_line_properties):
@@ -262,15 +260,15 @@ def run():
     racing_line, radius = create_random_bsp(mesh, track_name, center_line_properties)
     vel, t = main(racing_line, radius, pixels_per_meter)
     #a = caculateAccelerations(vel, t)
-    #print(f"time taken: {int(t[-1]//60)}: {t[-1]%60:.3f}")
+    print(f"time taken: {int(t[-1]//60)}: {t[-1]%60:.3f}")
     
 
-    #plot_velocity_coloured_line_v2(racing_line, vel, mesh)
+    plot_velocity_coloured_line_v2(racing_line, vel, mesh)
     #plotVelocity(vel, a)
 
 
 
-run()
+#run()
 #generateSpline.plot_spline(rand_bsp, random_pts, None)
 #generateSpline.plot_bspline(rand_bsp, random_pts, mesh, props["curvature"])
 #generateSpline.plot_everything(mesh, center_line, center_line_ctrpts, rand_bsp, random_pts)

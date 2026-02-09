@@ -9,11 +9,35 @@ from matplotlib.collections import LineCollection
 from skimage.morphology import skeletonize
 from scipy import interpolate
 
-
-
 from pathlib import Path
 from PIL import Image
 
+from TrackProcessing2.config import config, real_properties
+
+def define_starting_point(img):
+    BLUE = np.array([0, 81, 186, 255])
+    GREEN = np.array([0, 180, 75, 255])
+    imgarray = np.array(img)
+
+    blue_mask = np.all(imgarray == BLUE, axis=-1) #create a mask, faster than looping
+    green_mask = np.all(imgarray == GREEN, axis=-1)
+
+    blue_coords = np.argwhere(blue_mask) #get the coords of the pixels that match the mask
+    green_coords = np.argwhere(green_mask)
+
+    if len(blue_coords) == 0 or len(green_coords) == 0:
+        print("Error: there is a start point missing")
+        return None
+
+
+    p1 = blue_coords.mean(axis=0) # [y, x] calculates the mean posistion if more than one pixel is found
+    p2 = green_coords.mean(axis=0) # [y, x]
+
+    mid_y = (p1[0] + p2[0]) / 2 #mid point of both start points
+    mid_x = (p1[1] + p2[1]) / 2
+
+    print(f"Start Midpoint: x={mid_x}, y={mid_y}")
+    return np.array([mid_x, mid_y])
 
 
 def generate_centerLine(img_arr):
@@ -39,6 +63,8 @@ def catmull_rom_spline(points):
     sample_per_segments = 20
 
     points = np.array(points, dtype=float)
+    if np.allclose(points[0], points[-1]):
+        points = points[:-1]
     points = np.vstack([points[-1], points, points[0], points[1]]) #ensure closed curve by adding the last point and the start and the first two points to the end
     num_points = len(points) # number of control points 
     result = []
@@ -145,7 +171,20 @@ def b_spline(pts, sample_size):
     x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
     dx, dy = interpolate.splev(u_fine, tck, der=1)
     d2x, d2y = interpolate.splev(u_fine, tck, der=2)
-    curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5 
+    curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
+
+    pts = np.column_stack([x_fine, y_fine])
+    if not np.allclose(pts[0], pts[-1]):
+        pts = np.vstack([pts, pts[0]])
+        x = pts[:,0]
+        y = pts[:,1]
+        tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree
+        u_fine = np.linspace(0, 1, sample_size) #number of points to have on the radius
+        x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
+        dx, dy = interpolate.splev(u_fine, tck, der=1)
+        d2x, d2y = interpolate.splev(u_fine, tck, der=2)
+        curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
+    
     return np.column_stack([x_fine, y_fine]), curvature
 
 
@@ -153,14 +192,14 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
     rand_pts_idx = []
     rangeVal = rangepercent*num_pts_across
     step = ceil(len(mesh) / sample_size)
-
+    bias_factor = config["bias_factor"] # how much it pulls towards the center
     num_pts_across -= 1 #to ensure not out of range
     current_idx = random.randint(0, num_pts_across)
 
     mean = 0
     for i in range(0, len(mesh), step):
         target_idx = (num_pts_across) // 2 #the middle
-        bias_factor = 0.1 # how much it pulls towards the center
+        
         steered_center = (current_idx * (1 - bias_factor)) + (target_idx * bias_factor)
         
         start = max(0, int(steered_center - rangeVal))
@@ -170,7 +209,7 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
         current_idx = random.randint(start, end)
         rand_pts_idx.append(current_idx)
     
-    #print('mean index: ',mean/len(rand_pts_idx))
+    rand_pts_idx[-1] = rand_pts_idx[0] #ensure closed loop
     for i in range(len(rand_pts_idx)-2, -1, -1):
         idx_old = rand_pts_idx[i+1]
         idx_new = rand_pts_idx[i]
@@ -184,7 +223,7 @@ def random_points(mesh, num_pts_across, rangepercent, sample_size):
     for i, row in enumerate(range(0, len(mesh), step)):
         actual_pt_idx = rand_pts_idx[i]
         rand_pts.append(mesh[row][actual_pt_idx])
-
+    #rand_pts.append(rand_pts[0]) #close loop
     return np.array(rand_pts)
 
 
@@ -208,7 +247,7 @@ def plot_mesh(mesh, img_arr):
     plt.plot(left_boundary[:,0], left_boundary[:,1], 'r-', label='Left Boundary')
     plt.plot(right_boundary[:,0], right_boundary[:,1], 'g-', label='Right Boundary')
     
-    plt.imshow(img_arr, cmap='gray')
+    #plt.imshow(img_arr, cmap='gray')
     plt.axis('equal')
     plt.show()
 
@@ -255,6 +294,7 @@ def plot_spline(curve, approx):
     #plt.imshow(img_arr, cmap='gray')
     plt.plot(approx[:,0], approx[:,1], 'ro-', label='Control Points')
     plt.plot(curve[:,0], curve[:,1], 'b-', label='Centripetal Catmull–Rom')
+    plt.plot(curve[0,0], curve[0,1], 'gs', label='Start Point')
     plt.legend()
     plt.axis('equal')
     plt.show()
@@ -325,7 +365,7 @@ def return_Img_Arr(track_name):
     img = Image.open(filepath).convert('L') # ensure grayscale
     return np.asarray(img)
 
-def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangepercent=0.05):
+def main(track_name, real_properties):
     #loading image
     _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -347,10 +387,10 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     #variables
 
 
-    num_points_across= 50
-    mesh_res = 1 #the bigger the number the lower the resolution
-    
-    rangepercent = 0.07 #the lower the number the lower the range --> less spiky curve between 0,1
+    num_points_across= config["num_points_across"]
+    mesh_res = config["mesh_res"] #the bigger the number the lower the resolution   
+    rangepercent = config["rangepercent"] #the lower the number the lower the range --> less spiky curve between 0,1
+    sample_size = config["sample_size"]
 
     #running functions
 
@@ -361,18 +401,26 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
     center_line = catmull_rom_spline(approx)
     center_line_properties = spline_properties(center_line)
-
     convertion = center_line_properties['length'] / real_properties[track_name]['real_track_length'] #num of pixels per meter
     track_width_pixels = convertion * real_properties[track_name]['real_track_width']
     print('num of pixels per meter: ', convertion)
 
     
+    # start = define_starting_point(img_composite)
+    # if start is not None:
+    #     distances = np.linalg.norm(center_line - start, axis=1)
+    #     closest_idx = np.argmin(distances)
+    #     print('closest: ', closest_idx)
+    #     center_line = np.roll(center_line, -closest_idx, axis=0)
     mesh = generate_mesh(center_line, track_width_pixels, mesh_res, num_points_across, center_line_properties['normal']) 
 
     
-    random_pts = random_points(mesh, num_points_across, rangepercent, sample_size=1000)
+    random_pts = random_points(mesh, num_points_across, rangepercent, sample_size)
 
-    rand_bsp, curvature = b_spline(random_pts, sample_size= 1000)
+    if not np.allclose(random_pts[0], random_pts[-1]):
+        random_pts = np.vstack([random_pts, random_pts[0]]) #temp double double check it is a close loop
+
+    rand_bsp, curvature = b_spline(random_pts, sample_size)
     radius = 1/abs(curvature)
     #print(repr(random_pts))
  
@@ -380,7 +428,7 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     #print('cv2s arclength feature vs arc-length params:', cv2.arcLength(center_line.astype(np.float32).reshape(-1,1,2), True), 'vs', center_line_properties['length'])
 
     
-
+    
     #plot_img(img_arr)
     #plot_skeleton(skeleton_points, binary)
     #plot_approx(approx, binary)
@@ -394,23 +442,6 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
 
 
-if __name__ == "__main__":
-    real_properties = {
-    'silverstone': {
-        'real_track_length': 5891, #meters
-        'real_track_width': 20 #meters
-        },
-    'monza': {
-        'real_track_length': 5793,
-        'real_track_width': 12
-        },
-    'qatar': {
-        'real_track_length': 5419,
-        'real_track_width': 12
-        },
-    '90degturn': {
-        'real_track_length': 1000,
-        'real_track_width': 12
-        }
-    }
-    main('silverstone', real_properties)
+# if __name__ == "__main__":
+
+#     main('monza', real_properties)

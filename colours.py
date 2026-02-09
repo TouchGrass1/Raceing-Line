@@ -10,5 +10,6 @@ class colour_palette(Enum):
     RED2 = (187, 57, 59)
     LINE_GREY = (42, 45, 49)
     SUBTLE_GREY = (37, 40, 44)
+    GREEN = (33, 151, 111)
 
 
