@@ -9,7 +9,8 @@ from matplotlib.collections import LineCollection
 from skimage.morphology import skeletonize
 from scipy import interpolate
 
-
+#from TrackProcessing2.config import config, real_properties
+from config import config, real_properties
 
 from pathlib import Path
 from PIL import Image
@@ -120,9 +121,9 @@ def spline_properties(curve):
         'radius': r
         }
     
-def generate_mesh(curve, track_width, mesh_res, num_points_across, normals):
+def generate_mesh(curve, track_width, normals):
     
-    offsets = np.linspace(-track_width/2, track_width/2, num_points_across)
+    offsets = np.linspace(-track_width/2, track_width/2, config["num_points_across"])
 
     #normalise normals
     norms = np.linalg.norm(normals, axis=1)
@@ -132,27 +133,40 @@ def generate_mesh(curve, track_width, mesh_res, num_points_across, normals):
     
     mesh = []
     for i, (curve_pt, normal_vec) in enumerate(zip(curve, normals)):
-        if i % mesh_res == 0:
+        if i % config["mesh_res"] == 0:
             mesh_row_pts = curve_pt + np.outer(offsets, normal_vec) #outer product of mesh_row and normal_vev
             mesh.append(mesh_row_pts)
     return np.array(mesh)
 
-def b_spline(pts, sample_size):
+def b_spline(pts):
     x = pts[:,0]
     y = pts[:,1]
     tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree
-    u_fine = np.linspace(0, 1, sample_size) #number of points to have on the radius
+    u_fine = np.linspace(0, 1, config["sample_size"]) #number of points to have on the radius
     x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
     dx, dy = interpolate.splev(u_fine, tck, der=1)
     d2x, d2y = interpolate.splev(u_fine, tck, der=2)
-    curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5 
+    curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
+
+    pts = np.column_stack([x_fine, y_fine])
+    if not np.allclose(pts[0], pts[-1]):
+        pts = np.vstack([pts, pts[0]])
+        x = pts[:,0]
+        y = pts[:,1]
+        tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree
+        u_fine = np.linspace(0, 1, config["sample_size"]) #number of points to have on the radius
+        x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
+        dx, dy = interpolate.splev(u_fine, tck, der=1)
+        d2x, d2y = interpolate.splev(u_fine, tck, der=2)
+        curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
     return np.column_stack([x_fine, y_fine]), curvature
 
 
-def random_points(mesh, num_pts_across, rangepercent, sample_size):
+def random_points(mesh):
     rand_pts_idx = []
-    rangeVal = rangepercent*num_pts_across
-    step = ceil(len(mesh) / sample_size)
+    num_pts_across = config["num_points_across"]
+    rangeVal = config["rangepercent"]*num_pts_across
+    step = ceil(len(mesh) / config["sample_size"])
 
     num_pts_across -= 1 #to ensure not out of range
     current_idx = random.randint(0, num_pts_across)
@@ -325,7 +339,7 @@ def return_Img_Arr(track_name):
     img = Image.open(filepath).convert('L') # ensure grayscale
     return np.asarray(img)
 
-def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangepercent=0.05):
+def main(track_name):
     #loading image
     _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -344,14 +358,6 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
     binary = img_arr < 128  # invert image
 
-    #variables
-
-
-    num_points_across= 50
-    mesh_res = 1 #the bigger the number the lower the resolution
-    
-    rangepercent = 0.07 #the lower the number the lower the range --> less spiky curve between 0,1
-
     #running functions
 
     skeleton_points_3d = generate_centerLine(img_arr)
@@ -367,12 +373,12 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
     print('num of pixels per meter: ', convertion)
 
     
-    mesh = generate_mesh(center_line, track_width_pixels, mesh_res, num_points_across, center_line_properties['normal']) 
+    mesh = generate_mesh(center_line, track_width_pixels, center_line_properties['normal']) 
 
     
-    random_pts = random_points(mesh, num_points_across, rangepercent, sample_size=1000)
+    random_pts = random_points(mesh)
 
-    rand_bsp, curvature = b_spline(random_pts, sample_size= 1000)
+    rand_bsp, curvature = b_spline(random_pts)
     radius = 1/abs(curvature)
     #print(repr(random_pts))
  
@@ -394,23 +400,5 @@ def main(track_name, real_properties, num_points_across=50, mesh_res=1, rangeper
 
 
 
-if __name__ == "__main__":
-    real_properties = {
-    'silverstone': {
-        'real_track_length': 5891, #meters
-        'real_track_width': 20 #meters
-        },
-    'monza': {
-        'real_track_length': 5793,
-        'real_track_width': 12
-        },
-    'qatar': {
-        'real_track_length': 5419,
-        'real_track_width': 12
-        },
-    '90degturn': {
-        'real_track_length': 1000,
-        'real_track_width': 12
-        }
-    }
-    main('silverstone', real_properties)
+
+    main()

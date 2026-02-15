@@ -23,6 +23,7 @@ class Button:
         self.clicking = False # To handle holding down the button
         self.hover = False
         self.label = label
+
     def draw(self, screen, font):
         if self.clicking: colour = colour_pallete['blue']
         elif self.hover: colour = colour_pallete['red2']
@@ -38,8 +39,7 @@ class Button:
                 self.clicking = True
         if event.type == pg.MOUSEBUTTONUP:
             if self.clicking and self.rect.collidepoint(event.pos):
-                #self.clicked = not self.clicked for toggle button
-                self.clicked = True #for normal button
+                self.clicked = True
             self.clicking = False
         
         if event.type == pg.MOUSEMOTION:
@@ -59,7 +59,7 @@ class Dropdown(Button):
         self.options = options
         self.expanded = False
         self.selected_option = label
-        print('1', self.selected_option)
+        #print('1', self.selected_option)
         self.hover_options = -1
         self.option_rects = [pg.Rect(x, y + (i+1)*self.height, self.width, self.height) for i in range(len(options))]
     def draw(self, screen, font):
@@ -103,12 +103,49 @@ class Dropdown(Button):
                 if rect.collidepoint(event.pos):
                     self.hover_options = i
                     break
-                
+        elif event.type == pg.MOUSEMOTION:
+            if self.rect.collidepoint(event.pos):
+                self.hover = True
+            else:
+                self.hover = False
 
 
     def get_track(self):
         return self.selected_option
 
+class Toggle(Button):
+    def __init__(self, x, y, screen_shape, states):
+        super().__init__(x, y, screen_shape, states)
+        self.states = states
+        self.current_state = 0
+    
+    def change_state(self, event):
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                self.clicking = True
+        if event.type == pg.MOUSEBUTTONUP:
+            if self.clicking and self.rect.collidepoint(event.pos):
+                self.current_state = (self.current_state + 1) % len(self.states)
+            self.clicking = False
+        
+        if event.type == pg.MOUSEMOTION:
+            if self.rect.collidepoint(event.pos):
+                self.hover = True
+            else:
+                self.hover = False
+    def get_state(self):
+        return self.states[self.current_state]
+    
+    def toggle_draw(self, screen, font):
+        if self.clicking: colour = colour_pallete['blue']
+        elif self.hover: colour = colour_pallete['red2']
+        else: colour = colour_pallete['red']
+        pg.draw.rect(screen, colour, self.rect, border_radius= 20)
+        label_text = font.render(self.states[self.current_state], True, colour_pallete['white'])
+        label_rect = label_text.get_rect(center=self.rect.center)
+        screen.blit(label_text, label_rect)
+
+    
 
 class Divider:
     def __init__(self, x, y, w, h):
@@ -149,11 +186,14 @@ class Slider:
         self.min = min_val
         self.max = max_val
         self.val = initial_val
+        self.target_val = initial_val
         self.oldval = initial_val
         self.label = label
         self.dragging = False
         self.handle_x = x + (initial_val - min_val)/(max_val - min_val) * w
         self.font = pg.font.Font(None, 30)
+        self.lerp_speed = 5
+        
 
     def draw(self, screen, font):
         # Draw slider track
@@ -183,17 +223,23 @@ class Slider:
             rect = pg.Rect(self.rect.left, self.rect.top, x, self.rect.height )
             pg.draw.rect(screen, colour_pallete['red2'], rect, border_radius=23)
             
-            val_text = self.font.render(f"{self.val*100:.2n}%", 1, colour_pallete['white'])
+            val_text = self.font.render(f"{self.val*100}%", 1, colour_pallete['white'])
             pos = (self.rect.right - val_text.get_width(), self.rect.bottom + val_text.get_height())
             screen.blit(val_text, pos)
 
+    def smooth_update(self, target, dt):
+        if not self.active:
+            diff = target - self.val
+            self.val += diff * self.lerp_speed * dt
+            
+            self.handle_x = self.rect.left + ((self.val - self.min) / (self.max - self.min)) * self.rect.width #LERP
 
     def update_value(self, mouse_x):
         if self.active:
             self.handle_x = np.clip(mouse_x, self.rect.left, self.rect.right)
             self.val = self.min + (self.handle_x - self.rect.left)/self.rect.width * (self.max - self.min)
-        else:
-            pass
+            self.target_val = self.val
+
 
 class Text:
     def __init__(self, x, y, text, font_size):
@@ -205,6 +251,7 @@ class Text:
         background.blit(text, self.pos)
 
 class EntryBox:
+
     def __init__(self, x, y, w, h, text='', pwd='asdf', placeholder='Type asdf to start'):
         self.rect = pg.Rect(x, y, w, h)
         self.color_inactive = colour_pallete['line grey']
@@ -242,3 +289,29 @@ class EntryBox:
     def draw(self, screen):
         screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
         pg.draw.rect(screen, self.color, self.rect, 2)
+
+def draw_mesh_pygame(screen, mesh, scale_factor=1.0, offset=(0, 0)):
+    # Define colors
+    RED = (246, 32, 57)
+    GREEN = (41, 148, 82)
+    LINE_GREY = (42, 45, 49)
+
+    # 1. Draw the internal "ribs" of the mesh (the black lines in your plt code)
+    for row in mesh:
+        # Convert coordinates to integers for Pygame
+        pts = [(int(p[0] * scale_factor + offset[0]), 
+                int(p[1] * scale_factor + offset[1])) for p in row]
+        if len(pts) > 1:
+            pg.draw.lines(screen, LINE_GREY, False, pts, 1)
+
+    # 2. Draw Left Boundary (Red)
+    left_boundary = mesh[:, 0, :]
+    left_pts = [(int(p[0] * scale_factor + offset[0]), 
+                 int(p[1] * scale_factor + offset[1])) for p in left_boundary]
+    pg.draw.lines(screen, RED, False, left_pts, 3)
+
+    # 3. Draw Right Boundary (Green)
+    right_boundary = mesh[:, -1, :]
+    right_pts = [(int(p[0] * scale_factor + offset[0]), 
+                  int(p[1] * scale_factor + offset[1])) for p in right_boundary]
+    pg.draw.lines(screen, GREEN, False, right_pts, 3)

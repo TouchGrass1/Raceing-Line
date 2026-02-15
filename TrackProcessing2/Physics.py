@@ -6,7 +6,7 @@ class PhysicsConsts(Enum):
     MAX_RADIUS = 300  # meters
     SPEED_OF_SOUND = 343  # m/s at sea level
     ABSOLUTE_ZERO = -273.15  # deg C
-    VELOCITY_MAX = 380 #KPH
+    VELOCITY_MAX = 112 #m/s
     POWER = 750000 #W
     ACCEL_MIN = -24.5 #MS-2
     ACCEL_MAX = 10.7 #MS-2
@@ -15,7 +15,7 @@ class PhysicsConsts(Enum):
     FUEL_MAX = 110
     ACCEL_CORNER_MAX = 4 #gs not including vertical accel, only lateral
     MU_SOFT = 1.5
-    MU_MED = 1.4
+    MU_MEDIUM = 1.4
     MU_HARD = 1.3
     g = 9.81
     TYRE_LIFE_SOFT = 20
@@ -140,7 +140,7 @@ class PhysicsValidator:
     
     def validate_speed(speed):
         if speed < 0 or speed > PhysicsConsts['VELOCITY_MAX'].value:
-            raise ValueError(f"Speed must be between 0 and {PhysicsConsts['VELOCITY_MAX'].value} m/s.")
+            raise ValueError(f"Current speed is: {speed}\nSpeed must be between 0 and {PhysicsConsts['VELOCITY_MAX'].value} m/s.")
         return True
     
     def validate_mass(mass):
