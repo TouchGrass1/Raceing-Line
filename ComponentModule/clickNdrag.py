@@ -3,29 +3,25 @@ import pygame as pg
 class Drag:
     def __init__(self):
         self.moving = False
-        self.start = (0, 0)
-        self.offset = (0, 0)
+        self.start_mouse = (0, 0)
+        self.base_pan = (0, 0)
 
-    def handle_event(self, event, rect, pos):
-
+    def handle_event(self, event, clip_rect, current_pan):
         if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-            print('clickyy')
-            rect = rect.move(pos)
-            if rect.collidepoint(event.pos):
+            if clip_rect.collidepoint(event.pos):
                 self.moving = True
-                self.start = event.pos
-                self.offset = pos
+                self.start_mouse = event.pos
+                self.base_pan = current_pan # Store where we started
 
         elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
-            print('clickyy up')
             self.moving = False
 
         elif event.type == pg.MOUSEMOTION and self.moving:
-            print('dragyy')
-            dx = event.pos[0] - self.start[0]
-            dy = event.pos[1] - self.start[1]
-            return (self.offset[0] + dx, self.offset[1] + dy)
+            dx = event.pos[0] - self.start_mouse[0]
+            dy = event.pos[1] - self.start_mouse[1]
+            # Return the new cumulative pan
+            return (self.base_pan[0] + dx, self.base_pan[1] + dy)
 
-        return pos
+        return current_pan
 
 

@@ -15,9 +15,13 @@ colour_pallete = {
 }
 
 class Button:
-    def __init__(self, x, y, screen_shape, label):
-        self.width = 150/1920 * screen_shape[0]
-        self.height = 30/1080 * screen_shape[1]
+    def __init__(self, x, y, screen_shape, label, size='normal'):
+        if size == 'normal':
+            self.width = 150/1920 * screen_shape[0]
+            self.height = 30/1080 * screen_shape[1]
+        elif size == 'circle':
+            self.height = 30/1080 * screen_shape[1]
+            self.width = self.height
         self.rect = pg.Rect(x, y, self.width, self.height)
         self.clicked = False
         self.clicking = False # To handle holding down the button

@@ -3,12 +3,12 @@ import matplotlib.pyplot as plt
 from matplotlib.collections import LineCollection
 from matplotlib.colors import Normalize
 import numpy as np
-# import TrackProcessing2.generateSpline as generateSpline
-# from TrackProcessing2.config import variable_options, real_properties
-#from TrackProcessing2.Physics import *
-from Physics import *
-import generateSpline as generateSpline
-from config import variable_options, real_properties
+import TrackProcessing2.generateSpline as generateSpline
+from TrackProcessing2.config import variable_options, real_properties
+from TrackProcessing2.Physics import *
+# from Physics import *
+# import generateSpline as generateSpline
+# from config import variable_options, real_properties
 
 
 def findMaxVelocity(radius, mass, density, mu):

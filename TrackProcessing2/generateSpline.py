@@ -9,8 +9,8 @@ from matplotlib.collections import LineCollection
 from skimage.morphology import skeletonize
 from scipy import interpolate
 
-#from TrackProcessing2.config import config, real_properties
-from config import config, real_properties
+from TrackProcessing2.config import config, real_properties
+#from config import config, real_properties
 
 from pathlib import Path
 from PIL import Image

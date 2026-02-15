@@ -31,6 +31,7 @@ class TopPanel(BasePanel):
         self.x_margin = 0
         self.y = 60
         self.screen_shape = screen_shape
+        self.weather_toggle = Toggle((self.x_margin + self.even_spacing), self.y, self.screen_shape, variable_options['weather'])
 
     def time_display(self, surface, time_val):
         self._draw_text(surface, f"Time: {time_val:.2f}", self.x_margin + (self.even_spacing * 5), self.y)
@@ -41,11 +42,14 @@ class TopPanel(BasePanel):
     def pb_display(self, surface, pb):
         self._draw_text(surface, f"PB: {pb}", self.x_margin + (self.even_spacing * 3), self.y)
 
-    def weather_display(self, surface, weather):
-        self._draw_text(surface, f"Weather: {weather}", self.x_margin + self.even_spacing, self.y)
+    def weather_display(self, surface):
+        self.weather_toggle.toggle_draw(surface, self.font)
 
     def track_name_display(self, track_name, track_list):
         return Dropdown(self.x_margin + (self.even_spacing * 2), self.y, self.screen_shape, track_name, track_list)
+    
+    def handle_event(self, event):
+        self.weather_toggle.change_state(event)
 
 
 # ---------- LEFT PANEL ----------
@@ -56,30 +60,38 @@ class LeftPanel(BasePanel):
         width = int(self.border_x * 0.85)
         height = width * 0.3
         x_margin = int((self.border_x - width) // 2)
-        y_pos = int(0.9 * screen_shape[1])
+        self.even_spacing = int(width // 6)
+        
 
-        self.reset_btn = Button(x_margin, y_pos, screen_shape, "Reset")
+        self.reset_btn = Button(x_margin, screen_shape[1] - 3*self.even_spacing, screen_shape, "Reset")
+        self.pause_btn = Button(x_margin, screen_shape[1] - 6*self.even_spacing, screen_shape, "Pause")
 
     def draw(self, surface):
         self.reset_btn.draw(surface, self.font)
+        self.pause_btn.draw(surface, self.font)
 
 
     def handle_event(self, event):
         self.reset_btn.handle_event(event)
+        self.pause_btn.handle_event(event)
 
 
 # ---------- RIGHT PANEL ----------
 class RightPanel(BasePanel):
-    def __init__(self, screen_shape, font, font_size, throttle_val=0.45, brake_val=0.9):
+    def __init__(self, screen_shape, font, font_size):
         super().__init__(screen_shape, font, font_size)
         self.border_x = int(0.8 * screen_shape[0])
         self.x_margin = int(self.border_x + (screen_shape[0] // 128))
         panel_width = int(screen_shape[0] - self.border_x)
         self.panel_height = screen_shape[1]
         self.screen_shape = screen_shape
+        throttle_val=0.45
+        brake_val=0.9
+        fuel_val = 0.1
+        tyre_wear_val = 0.99
         
         self.slider_width, self.slider_height = int(panel_width * 15/16), int(self.panel_height * 0.03)
-
+        self.slider_width_small, self.slider_height_small = int(panel_width * 10/16), int(self.panel_height * 0.02)
         # throttle slider
         self.throttle_slider = Slider(self.x_margin, int(self.panel_height * 0.2), self.slider_width, self.slider_height, 0, 1, throttle_val, "Throttle", False)
         self.throttle_pos = (self.x_margin, self.panel_height // 6)
@@ -90,6 +102,11 @@ class RightPanel(BasePanel):
 
         # tyre toggle
         self.tyre_toggle = Toggle((self.border_x + (panel_width//3)), int(self.panel_height * 0.4), self.screen_shape, variable_options['tyre'])
+
+        #fuel slider
+        self.fuel_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.8), self.slider_width_small, self.slider_height_small, 0, 1, fuel_val, "Fuel", True)
+        #tyre wear slider
+        self.tyreWear_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.9), self.slider_width_small, self.slider_height_small, 0, 1, tyre_wear_val, "Tyre Wear", True)
     
     def update_health_bar_sliders(self, throttle_val, brake_val,):
         self.throttle_slider = Slider(self.x_margin, int(self.panel_height * 0.2), self.slider_width, self.slider_height, 0, 1, throttle_val, "Throttle", False)
@@ -97,6 +114,7 @@ class RightPanel(BasePanel):
 
     def handle_event(self, event):
         self.tyre_toggle.change_state(event)
+        #self.fuel_slider.update_value(event)
         
     def draw(self, surface):
         self._draw_text(surface, "Throttle", *self.throttle_pos)
@@ -104,33 +122,96 @@ class RightPanel(BasePanel):
         self.throttle_slider.draw(surface, self.font)
         self.brake_slider.draw(surface, self.font)
         self.tyre_toggle.toggle_draw(surface, self.font)
+        self.fuel_slider.draw(surface, self.font)
+        self.tyreWear_slider.draw(surface, self.font)
         return
 
 
-#
+# ---------- Center PANEL ----------
+class CenterPanel(BasePanel):
+    def __init__(self, screen_shape, font, font_size):
+        super().__init__(screen_shape, font, font_size)
+        self.start_x = int(0.1 * screen_shape[0]) + 3 #divider thickness
+        self.width = int(0.7 * screen_shape[0]) -3
+        self.y = (screen_shape[1] // 6) + 3
+        self.height = screen_shape[1] - self.y
+        self.y_padding = self.height // 10
+        self.even_spacing = int(self.width // 5)
+
+        self.zoom_in = Button( self.start_x + self.even_spacing*4, (screen_shape[1] - self.y_padding), screen_shape, "+", 'circle')
+        self.zoom_out= Button( (self.start_x + self.even_spacing*4 + 2*(30/1080 * screen_shape[1])), (screen_shape[1] - self.y_padding), screen_shape, "-", 'circle')
+    5
+    
+    def draw(self, surface, font):
+        self.zoom_in.draw(surface, font)
+        self.zoom_out.draw(surface, font)
+    
+    def handle_event(self, event):
+        self.zoom_in.handle_event(event)
+        self.zoom_out.handle_event(event)
+
+class Drag:
+    def __init__(self):
+        self.is_dragging = False
+        self.drag_start_mouse = (0, 0)
+        self.drag_start_pan = (0, 0)
+
+    def update(self, event, clip_rect, current_pan):
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+            if clip_rect.collidepoint(event.pos):
+                self.is_dragging = True
+                self.drag_start_mouse = event.pos
+                self.drag_start_pan = current_pan
+
+        elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
+            self.is_dragging = False
+
+        elif event.type == pg.MOUSEMOTION and self.is_dragging:
+            dx = event.pos[0] - self.drag_start_mouse[0]
+            dy = event.pos[1] - self.drag_start_mouse[1]
+            #calculate new pan based on movement since click
+            return (self.drag_start_pan[0] + dx, self.drag_start_pan[1] + dy)
+
+        return current_pan
+    
 def reset_sim():
     start_time = time.time()
     variables = default_variables.copy()
     return start_time, variables
 
+
 def run_GA(variables, clip_rect):
     print(f"Running GA for {variables['track']}...")
             
-    racing_line, best_time, vels, mesh = ga(variables, variables['track'].lower())
+    racing_line, best_time, vels, mesh = ga(variables)
+    
+    all_x = mesh[:, :, 0]
+    all_y = mesh[:, :, 1]
+    min_x, max_x = np.min(all_x), np.max(all_x)
+    min_y, max_y = np.min(all_y), np.max(all_y)
+    
+    #store the track bounds as pygame Rect
+    track_rect = pg.Rect(min_x, min_y, max_x - min_x, max_y - min_y)
     
     scale, offset = calculate_auto_scale(mesh, clip_rect)
     pb_str = f"{int(best_time[-1]//60)}: {best_time[-1]%60:.3f}"
     start_time = time.time()
     acceleration = caculateAccelerations(vels, best_time)
-    return racing_line, best_time, vels, mesh, scale, offset, pb_str, start_time, acceleration
+    return racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration
 
+def zoom(track_rect, clip_rect, scale, in_bool):
+    zoom_step = 1.3 if in_bool else 0.7
+    scale = np.clip(scale * zoom_step, 0.01, 50.0)
+  
+    offset_x = clip_rect.centerx - (track_rect.centerx * scale)
+    offset_y = clip_rect.centery - (track_rect.centery * scale)
+    
+    return scale, (offset_x, offset_y)
 
 def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset):
 
     left_boundary = mesh[:, 0, :]
     right_boundary = mesh[:, -1, :]
-
-    scale, offset = calculate_auto_scale(mesh, screen.get_clip())
     
     left_pts = [(int(p[0] * scale + offset[0]), int(p[1] * scale + offset[1])) for p in left_boundary]
     right_pts = [(int(p[0] * scale + offset[0]), int(p[1] * scale + offset[1])) for p in right_boundary]
@@ -249,6 +330,9 @@ def main():
     racing_line, best_time, vels, mesh = None, None, None, None
     pb_str = "00:00.000"
     best_time = [1]
+    paused = False
+    pause_start_time = 0
+    total_paused_duration = 0
 
 
     # Background surface (static)
@@ -259,11 +343,13 @@ def main():
     # Font
     font_size = screen_shape[1]//30
     font = pg.font.Font(None, font_size)
+    scale = 1
 
     # Panels
     top_panel = TopPanel(screen_shape, font, font_size)
     left_panel = LeftPanel(screen_shape, font, font_size)
     right_panel = RightPanel(screen_shape, font, font_size)
+    center_panel = CenterPanel(screen_shape, font, font_size)
 
     # Track setup
     #track_list = ["Monaco", "Silverstone", "Spa", "Interlagos", "Suzuka", "Yas Marina", "Import"]
@@ -277,7 +363,9 @@ def main():
     h = screen_shape[1] - y
     DIVIDER_THICKNESS = 3
     clip_rect = pg.Rect(x + DIVIDER_THICKNESS, y + DIVIDER_THICKNESS, w - DIVIDER_THICKNESS, h - DIVIDER_THICKNESS)
-
+    pan = (0, 0)
+    dragger = Drag()
+    track_rect = None
     # Dividers
     dividers = Dividers(screen_shape)
 
@@ -290,55 +378,79 @@ def main():
                 return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 return
+            
+            pan = dragger.update(event, clip_rect, pan)
             if event.type == MOUSEBUTTONDOWN:
                 print(pg.mouse.get_pos())
                 if left_panel.reset_btn.rect.collidepoint(event.pos):
                     start_time, variables = reset_sim()
-                    right_panel.tyre_toggle.get_state()
+                    pan = (0, 0)
+                if center_panel.zoom_in.rect.collidepoint(event.pos):
+                    scale, offset = zoom(track_rect, screen.get_clip(), scale, True)
+                if center_panel.zoom_out.rect.collidepoint(event.pos):
+                    scale, offset = zoom(track_rect, screen.get_clip(), scale, False)
+                if left_panel.pause_btn.rect.collidepoint(event.pos):
+                    paused = not paused
+                    if paused:
+                        pause_start_time = time.time()
+                    else:
+                        total_paused_duration += time.time() - pause_start_time
 
             left_panel.handle_event(event)
             track_dropdown.handle_event(event)
             right_panel.handle_event(event)
+            top_panel.handle_event(event)
+            center_panel.handle_event(event)
 
         if variables['tyre'] != right_panel.tyre_toggle.get_state():
             variables['tyre'] = right_panel.tyre_toggle.get_state()
-            racing_line, best_time, vels, mesh, scale, offset, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+            racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
 
         # track dropdown
         if variables['track'] != track_dropdown.get_track():
             variables['track'] = track_dropdown.get_track()
-            racing_line, best_time, vels, mesh, scale, offset, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+            racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+            
+            print(scale)
             print("----")
             print(f"Track changed to: {variables['track']}")
             print("----")
 
+        if not paused: 
+            current_time = (time.time() - start_time) - total_paused_duration
+        else:
+            #when paused, current_time stays fixed at its last value
+            current_time = (pause_start_time - start_time) - total_paused_duration
 
-        current_time = time.time() - start_time
+
         
         #DRAWING
         screen.blit(background, (0, 0))
         dividers.draw(screen)
         left_panel.draw(screen)
         right_panel.draw(screen)
-        
+        center_panel.draw(screen, font)
+                
 
         # top panel overlays
         top_panel.time_display(screen, current_time)
         top_panel.lap_display(screen, current_time / best_time[-1])
         top_panel.pb_display(screen, pb_str)
-        top_panel.weather_display(screen, "Sunny")
+        top_panel.weather_display(screen)
         track_dropdown.draw(screen, font)
 
         screen.set_clip(clip_rect)
         if mesh is not None:
-            draw_track_elements(screen, mesh, racing_line, vels, scale, offset)
-            pos, angle = get_car_position(current_time, racing_line, best_time, scale, offset)
+            render_offset = (offset[0] + pan[0], offset[1] + pan[1])
+            draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset)
+            pos, angle = get_car_position(current_time, racing_line, best_time, scale, render_offset)
             draw_car(screen, pos, angle)
             throttle = get_currentThrottle(current_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))
 
 
         screen.set_clip(None)
+
   
         clock.tick(60)
         pg.display.flip()

@@ -1,9 +1,9 @@
 config = {
-    "SECTOR_LENGTH": 800, #points per sector for crossover 
+    "SECTOR_LENGTH": 1000, #points per sector for crossover 
     "rangepercent":0.02, #the lower the number the lower the range --> less spiky curve between 0,1
     "sample_size": 1000, #number of random points to sample on the track for BSP generation
     "pop_size": 25, #50
-    "elite_rate": 0.05, #percentage of top individuals to carry over to next generation
+    "elite_rate": 0.2, #percentage of top individuals to carry over to next generation
     "mut_rate": 0.3, #mutation rate
     "smoothing_factor": 0.1, #the higher the number the more smoothing
     "nudging_factor": 4, #the higher the number the more aggressive the nudge
@@ -15,7 +15,7 @@ config = {
     "min_generations": 15, #minimum number of generations to run before checking for convergence
     "num_points_across": 60, #number of points to sample across the width of the track
     "mesh_res": 1, #the bigger the number the lower the resolution
-    "bias_factor": 0.05 # how much it pulls towards the center
+    "bias_factor": 0.8 # how much it pulls towards the center
 }
 
 real_properties = {
