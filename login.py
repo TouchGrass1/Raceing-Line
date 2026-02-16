@@ -25,7 +25,7 @@ def main():
     welcome.draw(background)
 
     logo = pg.image.load("Assets/F1logo.png").convert_alpha()
-    input = EntryBox(700, 800, 500, 50)
+    input = EntryBox(700, 800, 500, 50, is_password=True)
     # Event loop
     while True:
         for event in pg.event.get():

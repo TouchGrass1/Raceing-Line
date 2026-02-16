@@ -63,6 +63,8 @@ class Dropdown(Button):
         self.options = options
         self.expanded = False
         self.selected_option = label
+        self.x= x
+        self.y = y
         #print('1', self.selected_option)
         self.hover_options = -1
         self.option_rects = [pg.Rect(x, y + (i+1)*self.height, self.width, self.height) for i in range(len(options))]
@@ -116,6 +118,17 @@ class Dropdown(Button):
 
     def get_track(self):
         return self.selected_option
+
+    def set_track(self, track_name):
+        self.selected_option = track_name
+
+    def update_options(self, new_option):
+        if new_option not in self.options:
+                        self.options.pop()
+                        self.options.append(new_option)
+                        self.options.append('import')
+                        self.option_rects = [pg.Rect(self.x, self.y + (i+1)*self.height, self.width, self.height) for i in range(len(self.options))]
+                        self.selected_option = new_option
 
 class Toggle(Button):
     def __init__(self, x, y, screen_shape, states):
@@ -256,16 +269,17 @@ class Text:
 
 class EntryBox:
 
-    def __init__(self, x, y, w, h, text='', pwd='asdf', placeholder='Type asdf to start'):
+    def __init__(self, x, y, w, h, pwd='asdf', is_password=False, placeholder='Type asdf to start'):
         self.rect = pg.Rect(x, y, w, h)
         self.color_inactive = colour_pallete['line grey']
         self.color_active = colour_pallete['white']
         self.color = self.color_inactive
         self.pwd = pwd
+        self.is_password = is_password
         self.placeholder = placeholder
-        self.text = text
+        self.text = ''
         self.font = pg.font.Font(None, 32)
-        self.txt_surface = self.font.render(text, True, self.color)
+        self.txt_surface = self.font.render(self.text, True, self.color)
         self.active = False
         self.txt_surface = self.font.render(self.placeholder, True, self.color)
     def handle_event(self, event):
@@ -278,10 +292,14 @@ class EntryBox:
         if event.type == pg.KEYDOWN:
             if self.active:
                 if event.key == pg.K_RETURN:
-                    if self.text == self.pwd:
-                        print("Correct Password")
+                    if self.is_password:
+                        if self.text == self.pwd:
+                            print("Correct Password")
+                            self.text = ''
+                            return True
+                    else:                        
                         return True
-                    self.text = ''
+                    
                 elif event.key == pg.K_BACKSPACE:
                     self.text = self.text[:-1]
                 else:
@@ -289,6 +307,8 @@ class EntryBox:
                 self.txt_surface = self.font.render(self.text, True, self.color)
         if not self.active:
             self.txt_surface = self.font.render(self.placeholder, True, self.color)
+    def get_text(self):
+        return self.text
 
     def draw(self, screen):
         screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))

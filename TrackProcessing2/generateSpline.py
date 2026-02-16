@@ -14,7 +14,7 @@ from TrackProcessing2.config import config, real_properties
 
 from pathlib import Path
 from PIL import Image
-
+import shutil
 
 
 def generate_centerLine(img_arr):
@@ -339,14 +339,24 @@ def return_Img_Arr(track_name):
     img = Image.open(filepath).convert('L') # ensure grayscale
     return np.asarray(img)
 
-def main(track_name):
+def main(variables):
     #loading image
     _PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
     ASSETS_DIR = _PROJECT_ROOT / "assets" / "tracks"
-    ORDERS_DIR = _PROJECT_ROOT / "orders" / track_name
-    ORDERS_DIR.mkdir(exist_ok=True)
-    filepath = ASSETS_DIR / f"{track_name}.png"
+
+    track_name = variables['track']
+    custom_path = variables.get('custom_path', None)
+    
+    if custom_path:
+        filepath = Path(custom_path)
+        shutil.copy(filepath, ASSETS_DIR)
+    else:        
+        filepath = ASSETS_DIR / f"{track_name}.png"
+
+    #ASSETS_DIR = _PROJECT_ROOT / "assets" / "tracks"
+    #ORDERS_DIR = _PROJECT_ROOT / "orders" / track_name
+    #ORDERS_DIR.mkdir(exist_ok=True)
+    #filepath = ASSETS_DIR / f"{track_name}.png"
 
     img = Image.open(filepath).convert('RGBA')
     # Create white background image
@@ -387,14 +397,14 @@ def main(track_name):
 
     
 
-    #plot_img(img_arr)
-    #plot_skeleton(skeleton_points, binary)
-    #plot_approx(approx, binary)
-    #plot_spline(center_line, approx)
-    #plot_spline(rand_bsp, random_pts)
-    #plot_bspline(rand_bsp, random_pts, mesh, curvature)
-    #plot_boundaries(mesh, center_line)
-    #plot_mesh(mesh, img_arr)
+    # plot_img(img_arr)
+    # plot_skeleton(skeleton_points, binary)
+    # plot_approx(approx, binary)
+    # plot_spline(center_line, approx)
+    # plot_spline(rand_bsp, random_pts)
+    # plot_bspline(rand_bsp, random_pts, mesh, curvature)
+    # plot_boundaries(mesh, center_line)
+    # plot_mesh(mesh, img_arr)
     #plot_everything(mesh, center_line, approx, rand_bsp, random_pts)
     return approx, center_line, center_line_properties, mesh
 

@@ -3,6 +3,9 @@ from pygame.locals import *
 from ComponentModule.components import *
 from colours import colour_palette
 import time
+import tkinter as tk
+from tkinter import filedialog
+from pathlib import Path
 
 import numpy as np
 
@@ -32,6 +35,8 @@ class TopPanel(BasePanel):
         self.y = 60
         self.screen_shape = screen_shape
         self.weather_toggle = Toggle((self.x_margin + self.even_spacing), self.y, self.screen_shape, variable_options['weather'])
+        self.show_popup = False
+
 
     def time_display(self, surface, time_val):
         self._draw_text(surface, f"Time: {time_val:.2f}", self.x_margin + (self.even_spacing * 5), self.y)
@@ -50,6 +55,28 @@ class TopPanel(BasePanel):
     
     def handle_event(self, event):
         self.weather_toggle.change_state(event)
+    
+    def draw_popup(self, surface):
+        #draw an overlay to dim screen
+        overlay = pg.Surface(self.screen_shape, pg.SRCALPHA)
+        overlay.fill((0, 0, 0, 180)) 
+        surface.blit(overlay, (0, 0))
+
+        #draw base panel
+        self.popup_rect = pg.Rect(self.screen_shape[0] // 6, self.screen_shape[1] // 6, (2*self.screen_shape[0]) // 3, (2*self.screen_shape[1]) // 3 )
+        pg.draw.rect(surface, colour_palette["SUBTLE_GREY"].value, self.popup_rect)
+
+        #draw components
+
+        self._draw_text(surface, "Calculating Racing Line", self.popup_rect.center)
+
+    def handle_popup_events(self, event):             
+        #close if click outside
+        if event.type == pg.MOUSEBUTTONDOWN:
+            if not self.popup_rect.collidepoint(event.pos): self.show_import_popup = False
+
+        return True
+
 
 
 # ---------- LEFT PANEL ----------
@@ -64,16 +91,16 @@ class LeftPanel(BasePanel):
         
 
         self.reset_btn = Button(x_margin, screen_shape[1] - 3*self.even_spacing, screen_shape, "Reset")
-        self.pause_btn = Button(x_margin, screen_shape[1] - 6*self.even_spacing, screen_shape, "Pause")
+        self.pause_toggle = Toggle(x_margin, screen_shape[1] - 6*self.even_spacing, screen_shape, ["Pause", "Play"])
 
     def draw(self, surface):
         self.reset_btn.draw(surface, self.font)
-        self.pause_btn.draw(surface, self.font)
+        self.pause_toggle.toggle_draw(surface, self.font)
 
 
     def handle_event(self, event):
         self.reset_btn.handle_event(event)
-        self.pause_btn.handle_event(event)
+        self.pause_toggle.change_state(event)
 
 
 # ---------- RIGHT PANEL ----------
@@ -142,7 +169,7 @@ class CenterPanel(BasePanel):
         self.zoom_out= Button( (self.start_x + self.even_spacing*4 + 2*(30/1080 * screen_shape[1])), (screen_shape[1] - self.y_padding), screen_shape, "-", 'circle')
     5
     
-    def draw(self, surface, font):
+    def draw_zoom_btns(self, surface, font):
         self.zoom_in.draw(surface, font)
         self.zoom_out.draw(surface, font)
     
@@ -179,6 +206,40 @@ def reset_sim():
     variables = default_variables.copy()
     return start_time, variables
 
+def open_file_browser():
+    root = tk.Tk()
+    root.withdraw() 
+    root.attributes("-topmost", True) #bring to top
+    
+    file_path = filedialog.askopenfilename(
+        title="Select Track Image",
+        filetypes=[("Image Files", "*.png *.jpg *.jpeg *.bmp"), ("All Files", "*.*")]
+    )
+    
+    if file_path == "":
+        return None, None
+
+    props_path = filedialog.askopenfilename(
+            title="Select Track Properties (.txt)",
+            filetypes=[("Text Files", "*.txt")]
+        )
+    root.destroy()
+    
+    return file_path, props_path
+
+def add_real_properties(track_name, track_properties_path):
+    new_props = {
+        'real_track_length': 1000, 
+        'real_track_width': 12
+    }
+    with open(track_properties_path, 'r') as f:
+        for line in f:
+            if ':' in line:
+                key, value = line.split(':')   
+                new_props[key.strip()] = float(value.strip()) # remove whitespace and convert to float
+
+        real_properties[track_name] = new_props
+        print(f"Properties updated for {track_name}: {new_props}")
 
 def run_GA(variables, clip_rect):
     print(f"Running GA for {variables['track']}...")
@@ -378,18 +439,20 @@ def main():
                 return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 return
-            
+                      
             pan = dragger.update(event, clip_rect, pan)
             if event.type == MOUSEBUTTONDOWN:
                 print(pg.mouse.get_pos())
                 if left_panel.reset_btn.rect.collidepoint(event.pos):
                     start_time, variables = reset_sim()
                     pan = (0, 0)
+                    scale, offset = calculate_auto_scale(mesh, clip_rect)
+
                 if center_panel.zoom_in.rect.collidepoint(event.pos):
                     scale, offset = zoom(track_rect, screen.get_clip(), scale, True)
                 if center_panel.zoom_out.rect.collidepoint(event.pos):
                     scale, offset = zoom(track_rect, screen.get_clip(), scale, False)
-                if left_panel.pause_btn.rect.collidepoint(event.pos):
+                if left_panel.pause_toggle.rect.collidepoint(event.pos):
                     paused = not paused
                     if paused:
                         pause_start_time = time.time()
@@ -408,8 +471,27 @@ def main():
 
         # track dropdown
         if variables['track'] != track_dropdown.get_track():
-            variables['track'] = track_dropdown.get_track()
-            racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+            new_selection = track_dropdown.get_track()
+            
+            if new_selection == 'import':
+                path, props_path = open_file_browser()
+                if path:
+                    track_filename = Path(path).stem
+                    add_real_properties(track_filename, props_path)
+                    track_dropdown.update_options(track_filename)
+
+                    variables['track'] = track_filename
+                    variables['custom_path'] = path
+                    racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+                else:
+                    track_dropdown.set_track(variables['track'])
+                    print("Import cancelled")
+            else:
+                variables['track'] = new_selection
+                variables['custom_path'] = None
+                top_panel.show_popup = True
+                racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+            top_panel.show_popup = False
             
             print(scale)
             print("----")
@@ -418,9 +500,7 @@ def main():
 
         if not paused: 
             current_time = (time.time() - start_time) - total_paused_duration
-        else:
-            #when paused, current_time stays fixed at its last value
-            current_time = (pause_start_time - start_time) - total_paused_duration
+
 
 
         
@@ -429,7 +509,7 @@ def main():
         dividers.draw(screen)
         left_panel.draw(screen)
         right_panel.draw(screen)
-        center_panel.draw(screen, font)
+        
                 
 
         # top panel overlays
@@ -447,11 +527,13 @@ def main():
             draw_car(screen, pos, angle)
             throttle = get_currentThrottle(current_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))
-
-
+            center_panel.draw_zoom_btns(screen, font)
+        
         screen.set_clip(None)
+        
+        if top_panel.show_popup:
+            top_panel.draw_popup(screen)
 
-  
         clock.tick(60)
         pg.display.flip()
 
