@@ -15,10 +15,9 @@ from TrackProcessing2.config import config, real_properties, default_variables, 
 
 # ---------- PANEL BASE CLASS ----------
 class BasePanel:
-    def __init__(self, screen_shape, font, font_size):
+    def __init__(self, screen_shape, font):
         self.screen_shape = screen_shape
         self.font = font
-        self.font_size = font_size
 
     def _draw_text(self, surface, text, x, y, colour="WHITE"):
         text_surface = self.font.render(text, True, colour_palette[colour].value)
@@ -27,8 +26,8 @@ class BasePanel:
 
 # ---------- TOP PANEL ----------
 class TopPanel(BasePanel):
-    def __init__(self, screen_shape, font, font_size):
-        super().__init__(screen_shape, font, font_size)
+    def __init__(self, screen_shape, font):
+        super().__init__(screen_shape, font)
         self.end_x = int(0.8 * screen_shape[0])
         self.even_spacing = int(self.end_x // 6)
         self.x_margin = 0
@@ -63,12 +62,11 @@ class TopPanel(BasePanel):
         surface.blit(overlay, (0, 0))
 
         #draw base panel
-        self.popup_rect = pg.Rect(self.screen_shape[0] // 6, self.screen_shape[1] // 6, (2*self.screen_shape[0]) // 3, (2*self.screen_shape[1]) // 3 )
-        pg.draw.rect(surface, colour_palette["SUBTLE_GREY"].value, self.popup_rect)
+        #self.popup_rect = pg.Rect((self.screen_shape[0] // 6), (self.screen_shape[1] // 6), (2*self.screen_shape[0]) // 3, (2*self.screen_shape[1]) // 3 )
+        #pg.draw.rect(surface, colour_palette["SUBTLE_GREY"].value, (0,0, 300, 500))
 
         #draw components
-
-        self._draw_text(surface, "Calculating Racing Line", self.popup_rect.center)
+        self._draw_text(surface, "Calculating Racing Line", self.screen_shape[0]//2, self.screen_shape[1]//2)
 
     def handle_popup_events(self, event):             
         #close if click outside
@@ -81,8 +79,8 @@ class TopPanel(BasePanel):
 
 # ---------- LEFT PANEL ----------
 class LeftPanel(BasePanel):
-    def __init__(self, screen_shape, font, font_size):
-        super().__init__(screen_shape, font, font_size)
+    def __init__(self, screen_shape, font):
+        super().__init__(screen_shape, font)
         self.border_x = int(0.1 * screen_shape[0])
         width = int(self.border_x * 0.85)
         height = width * 0.3
@@ -105,8 +103,9 @@ class LeftPanel(BasePanel):
 
 # ---------- RIGHT PANEL ----------
 class RightPanel(BasePanel):
-    def __init__(self, screen_shape, font, font_size):
-        super().__init__(screen_shape, font, font_size)
+    def __init__(self, screen_shape, font, small_font):
+        super().__init__(screen_shape, font)
+        self.small_font = small_font
         self.border_x = int(0.8 * screen_shape[0])
         self.x_margin = int(self.border_x + (screen_shape[0] // 128))
         panel_width = int(screen_shape[0] - self.border_x)
@@ -116,6 +115,7 @@ class RightPanel(BasePanel):
         brake_val=0.9
         fuel_val = 0.1
         tyre_wear_val = 0.99
+        self.window_size = 10
         
         self.slider_width, self.slider_height = int(panel_width * 15/16), int(self.panel_height * 0.03)
         self.slider_width_small, self.slider_height_small = int(panel_width * 10/16), int(self.panel_height * 0.02)
@@ -128,22 +128,32 @@ class RightPanel(BasePanel):
         self.brake_pos = (self.x_margin, int(self.panel_height * 4/15))
 
         # tyre toggle
-        self.tyre_toggle = Toggle((self.border_x + (panel_width//3)), int(self.panel_height * 0.4), self.screen_shape, variable_options['tyre'])
+        self.tyre_toggle = Toggle((self.border_x + (panel_width//3)), int(self.panel_height * 0.35), self.screen_shape, variable_options['tyre'])
 
         #fuel slider
         self.fuel_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.8), self.slider_width_small, self.slider_height_small, 0, 1, fuel_val, "Fuel", True)
         #tyre wear slider
         self.tyreWear_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.9), self.slider_width_small, self.slider_height_small, 0, 1, tyre_wear_val, "Tyre Wear", True)
-    
+
+        # Graphs
+        self.speed_graph = TelemetryGraph((self.border_x + 5*(self.x_margin - self.border_x)), int(self.panel_height * 0.42), (panel_width - 10*(self.x_margin - self.border_x)), (panel_width - 10*(self.x_margin - self.border_x)), "Speed vs Time")
+        self.GForce_graph = TelemetryGraph((self.border_x + 13*(self.x_margin - self.border_x)), int(self.panel_height * 0.5), (panel_width - 20*(self.x_margin - self.border_x)), (panel_width - 20*(self.x_margin - self.border_x)), "G Force")
+
+        #Window control
+        self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.border_x)), 50, placeholder='Enter Window Size', is_password=False)
+
     def update_health_bar_sliders(self, throttle_val, brake_val,):
         self.throttle_slider = Slider(self.x_margin, int(self.panel_height * 0.2), self.slider_width, self.slider_height, 0, 1, throttle_val, "Throttle", False)
         self.brake_slider = Slider(self.x_margin, int(self.panel_height * 0.3), self.slider_width, self.slider_height, 0, 1, brake_val, "Brake", False)
 
     def handle_event(self, event):
         self.tyre_toggle.change_state(event)
-        #self.fuel_slider.update_value(event)
+        self.fuel_slider.listen(event)
+        self.tyreWear_slider.listen(event)
+        if self.window_input.handle_event(event):
+            self.window_size = int(self.window_input.get_text())
         
-    def draw(self, surface):
+    def draw(self, surface, sim_time):
         self._draw_text(surface, "Throttle", *self.throttle_pos)
         self._draw_text(surface, "Brake", *self.brake_pos)
         self.throttle_slider.draw(surface, self.font)
@@ -151,13 +161,16 @@ class RightPanel(BasePanel):
         self.tyre_toggle.toggle_draw(surface, self.font)
         self.fuel_slider.draw(surface, self.font)
         self.tyreWear_slider.draw(surface, self.font)
+        self.speed_graph.draw(surface, self.small_font, sim_time, self.window_size)
+        self.window_input.draw(surface)
+        #self.GForce_graph.draw(surface, self.small_font, sim_time)
         return
 
 
 # ---------- Center PANEL ----------
 class CenterPanel(BasePanel):
-    def __init__(self, screen_shape, font, font_size):
-        super().__init__(screen_shape, font, font_size)
+    def __init__(self, screen_shape, font):
+        super().__init__(screen_shape, font)
         self.start_x = int(0.1 * screen_shape[0]) + 3 #divider thickness
         self.width = int(0.7 * screen_shape[0]) -3
         self.y = (screen_shape[1] // 6) + 3
@@ -321,9 +334,9 @@ def calculate_auto_scale(mesh, clip_rect, padding=40):
     
     return scale, (offset_x, offset_y)
 
-def get_car_position(current_time, racing_line, time_array, scale, offset):
+def get_car_position(sim_time, racing_line, time_array, scale, offset):
 
-    sim_time = current_time % time_array[-1]
+
     racing_line = np.vstack([racing_line, racing_line[0]])
     car_x = np.interp(sim_time, time_array, racing_line[:, 0]) #LERP the car pos
     car_y = np.interp(sim_time, time_array, racing_line[:, 1])
@@ -367,8 +380,7 @@ def caculateAccelerations(vel, t):
             a_arr[i] = (vel[i] - vel[i-1]) / dt
     return a_arr
 
-def get_currentThrottle(current_time, time_array, acceleration_array):
-    sim_time = current_time % time_array[-1]
+def get_currentThrottle(sim_time, time_array, acceleration_array):
     current_acceleration = np.interp(sim_time, time_array[:-1], acceleration_array)
     if current_acceleration > 0:
         current_throttle = 1
@@ -404,13 +416,17 @@ def main():
     # Font
     font_size = screen_shape[1]//30
     font = pg.font.Font(None, font_size)
+    small_font = pg.font.Font(None, font_size // 2)
+
     scale = 1
 
     # Panels
-    top_panel = TopPanel(screen_shape, font, font_size)
-    left_panel = LeftPanel(screen_shape, font, font_size)
-    right_panel = RightPanel(screen_shape, font, font_size)
-    center_panel = CenterPanel(screen_shape, font, font_size)
+    top_panel = TopPanel(screen_shape, font)
+    left_panel = LeftPanel(screen_shape, font)
+    right_panel = RightPanel(screen_shape, font, small_font)
+    center_panel = CenterPanel(screen_shape, font)
+
+
 
     # Track setup
     #track_list = ["Monaco", "Silverstone", "Spa", "Interlagos", "Suzuka", "Yas Marina", "Import"]
@@ -482,6 +498,10 @@ def main():
 
                     variables['track'] = track_filename
                     variables['custom_path'] = path
+                    pan = (0,0)
+                    top_panel.show_popup = True
+                    top_panel.draw_popup(screen)
+                    pg.display.flip()       
                     racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
                 else:
                     track_dropdown.set_track(variables['track'])
@@ -489,18 +509,23 @@ def main():
             else:
                 variables['track'] = new_selection
                 variables['custom_path'] = None
+                pan = (0,0)
                 top_panel.show_popup = True
+                top_panel.draw_popup(screen)
+                pg.display.flip()        
                 racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+            
+            right_panel.speed_graph.precompute_telemetry(best_time, vels)
+            right_panel.GForce_graph.precompute_telemetry(best_time, acceleration)
             top_panel.show_popup = False
             
-            print(scale)
             print("----")
             print(f"Track changed to: {variables['track']}")
             print("----")
 
         if not paused: 
             current_time = (time.time() - start_time) - total_paused_duration
-
+        sim_time = current_time % best_time[-1]
 
 
         
@@ -508,9 +533,8 @@ def main():
         screen.blit(background, (0, 0))
         dividers.draw(screen)
         left_panel.draw(screen)
-        right_panel.draw(screen)
+        right_panel.draw(screen, sim_time)
         
-                
 
         # top panel overlays
         top_panel.time_display(screen, current_time)
@@ -523,17 +547,15 @@ def main():
         if mesh is not None:
             render_offset = (offset[0] + pan[0], offset[1] + pan[1])
             draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset)
-            pos, angle = get_car_position(current_time, racing_line, best_time, scale, render_offset)
+            pos, angle = get_car_position(sim_time, racing_line, best_time, scale, render_offset)
             draw_car(screen, pos, angle)
-            throttle = get_currentThrottle(current_time, best_time, acceleration)
+            throttle = get_currentThrottle(sim_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))
             center_panel.draw_zoom_btns(screen, font)
         
         screen.set_clip(None)
         
-        if top_panel.show_popup:
-            top_panel.draw_popup(screen)
-
+        
         clock.tick(60)
         pg.display.flip()
 

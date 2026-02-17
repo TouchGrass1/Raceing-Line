@@ -160,6 +160,8 @@ def main(rand_bsp, radius, pixels_per_meter, variables):
     height = variables['elevation'] #m above sea level
     noLap = variables['lapNo']
     tyreType = variables['tyre']
+    if variables['weather'] == 'wet':
+        tyre_mu = tyre_mu / 2
 
     maxNoLap = 70 #maximum number of laps
     

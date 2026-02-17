@@ -251,9 +251,18 @@ class Slider:
             
             self.handle_x = self.rect.left + ((self.val - self.min) / (self.max - self.min)) * self.rect.width #LERP
 
-    def update_value(self, mouse_x):
-        if self.active:
-            self.handle_x = np.clip(mouse_x, self.rect.left, self.rect.right)
+    def listen(self, event):
+        x, y = pg.mouse.get_pos()
+
+        if self.rect.collidepoint(x, y):
+            if event.type == MOUSEBUTTONDOWN:
+                self.dragging = True
+
+        if event.type == MOUSEBUTTONUP:
+            self.dragging = False
+
+        if self.dragging:           
+            self.handle_x = np.clip(x, self.rect.left, self.rect.right)
             self.val = self.min + (self.handle_x - self.rect.left)/self.rect.width * (self.max - self.min)
             self.target_val = self.val
 
@@ -314,28 +323,93 @@ class EntryBox:
         screen.blit(self.txt_surface, (self.rect.x+5, self.rect.y+5))
         pg.draw.rect(screen, self.color, self.rect, 2)
 
-def draw_mesh_pygame(screen, mesh, scale_factor=1.0, offset=(0, 0)):
-    # Define colors
-    RED = (246, 32, 57)
-    GREEN = (41, 148, 82)
-    LINE_GREY = (42, 45, 49)
+class TelemetryGraph:
+    def __init__(self, x, y, w, h, title):
+        self.rect = pg.Rect(x, y, w, h)
+        self.title = title
+        self.points = []
+        self.STEP_SIZE_SECONDS=0.01 #10ms
+        self.smooth_vels = None
 
-    # 1. Draw the internal "ribs" of the mesh (the black lines in your plt code)
-    for row in mesh:
-        # Convert coordinates to integers for Pygame
-        pts = [(int(p[0] * scale_factor + offset[0]), 
-                int(p[1] * scale_factor + offset[1])) for p in row]
-        if len(pts) > 1:
-            pg.draw.lines(screen, LINE_GREY, False, pts, 1)
+    
+    def precompute_telemetry(self, time_arr, vels):
 
-    # 2. Draw Left Boundary (Red)
-    left_boundary = mesh[:, 0, :]
-    left_pts = [(int(p[0] * scale_factor + offset[0]), 
-                 int(p[1] * scale_factor + offset[1])) for p in left_boundary]
-    pg.draw.lines(screen, RED, False, left_pts, 3)
+        self.total_time = time_arr[-1]
+        self.num_samples = int(self.total_time / self.STEP_SIZE_SECONDS) #calculate number of samples with step_s in seconds
+        
+        self.smooth_times = np.linspace(0, self.total_time, self.num_samples) #smooth out times
 
-    # 3. Draw Right Boundary (Green)
-    right_boundary = mesh[:, -1, :]
-    right_pts = [(int(p[0] * scale_factor + offset[0]), 
-                  int(p[1] * scale_factor + offset[1])) for p in right_boundary]
-    pg.draw.lines(screen, GREEN, False, right_pts, 3)
+        time_arr = time_arr[0: len(vels)] 
+        self.smooth_vels = np.interp(self.smooth_times, time_arr, vels) #lerp to smooth at velocties
+        
+
+    def draw(self, surface, font, sim_time, WINDOW_SIZE_SECONDS = 10):
+        if WINDOW_SIZE_SECONDS <= 0:
+            WINDOW_SIZE_SECONDS = 10
+        window_indices = int(WINDOW_SIZE_SECONDS / self.STEP_SIZE_SECONDS)
+        if self.smooth_vels is None:
+            return
+        current_idx = int((sim_time / self.STEP_SIZE_SECONDS))
+        max_v = max(self.smooth_vels)
+
+        if current_idx >= window_indices:
+            slice_vels = self.smooth_vels[current_idx - window_indices : current_idx]
+        else: #make list circular
+            part2 = self.smooth_vels[0 : current_idx]
+            part1 = self.smooth_vels[-(window_indices - len(part2)):]
+            slice_vels = np.concatenate([part1, part2])
+
+        #Drawing part
+        pts = []
+        for i, val in enumerate(slice_vels):
+            rel_x = i / window_indices
+            px = self.rect.x + (rel_x * self.rect.width)
+                      
+            norm_y = np.clip(val / max_v, 0, 1)
+            py = self.rect.bottom - (norm_y * self.rect.height) #inverted for pygame
+            pts.append((px, py))
+
+
+        #bg
+        pg.draw.rect(surface, (30, 30, 30), self.rect)
+        pg.draw.rect(surface, colour_pallete['line grey'], self.rect, 1) #border
+
+        #draw lines
+        pg.draw.lines(surface, colour_pallete['blue'], False, pts, 2)
+
+        #draw title
+        title_surf = font.render(self.title, True, colour_pallete['white'])
+        surface.blit(title_surf, (self.rect.x, self.rect.y - 25))
+
+        #draw axis
+
+        #draw current value
+        current_speed_text = font.render(f"{slice_vels[-1]:.1f} m/s", True, colour_pallete['white'])
+        surface.blit(current_speed_text, (self.rect.right, py))
+
+
+# def draw_mesh_pygame(screen, mesh, scale_factor=1.0, offset=(0, 0)):
+#     # Define colors
+#     RED = (246, 32, 57)
+#     GREEN = (41, 148, 82)
+#     LINE_GREY = (42, 45, 49)
+
+#     # 1. Draw the internal "ribs" of the mesh (the black lines in your plt code)
+#     for row in mesh:
+#         # Convert coordinates to integers for Pygame
+#         pts = [(int(p[0] * scale_factor + offset[0]), 
+#                 int(p[1] * scale_factor + offset[1])) for p in row]
+#         if len(pts) > 1:
+#             pg.draw.lines(screen, LINE_GREY, False, pts, 1)
+
+#     # 2. Draw Left Boundary (Red)
+#     left_boundary = mesh[:, 0, :]
+#     left_pts = [(int(p[0] * scale_factor + offset[0]), 
+#                  int(p[1] * scale_factor + offset[1])) for p in left_boundary]
+#     pg.draw.lines(screen, RED, False, left_pts, 3)
+
+#     # 3. Draw Right Boundary (Green)
+#     right_boundary = mesh[:, -1, :]
+#     right_pts = [(int(p[0] * scale_factor + offset[0]), 
+#                   int(p[1] * scale_factor + offset[1])) for p in right_boundary]
+#     pg.draw.lines(screen, GREEN, False, right_pts, 3)
