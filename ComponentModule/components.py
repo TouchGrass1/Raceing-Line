@@ -153,6 +153,9 @@ class Toggle(Button):
     def get_state(self):
         return self.states[self.current_state]
     
+    def set_state(self, state_num):
+        self.states[state_num]
+    
     def toggle_draw(self, screen, font):
         if self.clicking: colour = colour_pallete['blue']
         elif self.hover: colour = colour_pallete['red2']
@@ -210,6 +213,7 @@ class Slider:
         self.handle_x = x + (initial_val - min_val)/(max_val - min_val) * w
         self.font = pg.font.Font(None, 30)
         self.lerp_speed = 5
+        self.clicked = False
         
 
     def draw(self, screen, font):
@@ -256,16 +260,25 @@ class Slider:
 
         if self.rect.collidepoint(x, y):
             if event.type == MOUSEBUTTONDOWN:
-                self.dragging = True
+                self.dragging = True                
 
         if event.type == MOUSEBUTTONUP:
             self.dragging = False
+            self.clicked = True
 
         if self.dragging:           
             self.handle_x = np.clip(x, self.rect.left, self.rect.right)
             self.val = self.min + (self.handle_x - self.rect.left)/self.rect.width * (self.max - self.min)
             self.target_val = self.val
 
+    def get_clicked(self):
+        if self.clicked:
+            self.clicked = False
+            return True
+        return False
+
+    def get_value(self):
+        return self.val
 
 class Text:
     def __init__(self, x, y, text, font_size):
@@ -330,7 +343,8 @@ class TelemetryGraph:
         self.points = []
         self.STEP_SIZE_SECONDS=0.01 #10ms
         self.smooth_vels = None
-
+        self.ghost_vels = None
+        self.ghost_bool = False
     
     def precompute_telemetry(self, time_arr, vels):
 
@@ -341,6 +355,15 @@ class TelemetryGraph:
 
         time_arr = time_arr[0: len(vels)] 
         self.smooth_vels = np.interp(self.smooth_times, time_arr, vels) #lerp to smooth at velocties
+    
+    def save_telementry(self):
+        self.ghost_vels = self.smooth_vels
+    
+    def reset_telementry(self):
+        self.ghost_vels = None
+    
+    def update_ghost_bool(self):
+        self.ghost_bool = not self.ghost_bool
         
 
     def draw(self, surface, font, sim_time, WINDOW_SIZE_SECONDS = 10):
@@ -350,24 +373,50 @@ class TelemetryGraph:
         if self.smooth_vels is None:
             return
         current_idx = int((sim_time / self.STEP_SIZE_SECONDS))
-        max_v = max(self.smooth_vels)
 
-        if current_idx >= window_indices:
-            slice_vels = self.smooth_vels[current_idx - window_indices : current_idx]
-        else: #make list circular
-            part2 = self.smooth_vels[0 : current_idx]
-            part1 = self.smooth_vels[-(window_indices - len(part2)):]
-            slice_vels = np.concatenate([part1, part2])
+        if self.ghost_bool and self.ghost_vels is not None:
+            max_v = max(np.maximum(self.smooth_vels, self.ghost_vels))
+            print(max_v)
+
+            if current_idx >= window_indices:
+                slice_vels = self.smooth_vels[current_idx - window_indices : current_idx]
+                slice_ghost = self.ghost_vels[current_idx - window_indices : current_idx]
+            else: #make list circular
+                part2 = self.smooth_vels[0 : current_idx]
+                part1 = self.smooth_vels[-(window_indices - len(part2)):]
+                slice_vels = np.concatenate([part1, part2])
+
+                part2 = self.ghost_vels[0 : current_idx]
+                part1 = self.ghost_vels[-(window_indices - len(part2)):]
+                slice_ghost = np.concatenate([part1, part2])
+        else:
+            max_v = max(self.smooth_vels)
+
+            if current_idx >= window_indices:
+                slice_vels = self.smooth_vels[current_idx - window_indices : current_idx]
+
+            else: #make list circular
+                part2 = self.smooth_vels[0 : current_idx]
+                part1 = self.smooth_vels[-(window_indices - len(part2)):]
+                slice_vels = np.concatenate([part1, part2])
+
+
 
         #Drawing part
         pts = []
+        ghost_pts = []
         for i, val in enumerate(slice_vels):
             rel_x = i / window_indices
             px = self.rect.x + (rel_x * self.rect.width)
-                      
+                    
             norm_y = np.clip(val / max_v, 0, 1)
             py = self.rect.bottom - (norm_y * self.rect.height) #inverted for pygame
             pts.append((px, py))
+
+            if self.ghost_bool and self.ghost_vels is not None:
+                norm_y_ghost = np.clip(slice_ghost[i] / max_v, 0, 1)
+                py = self.rect.bottom - (norm_y_ghost * self.rect.height) #inverted for pygame
+                ghost_pts.append((px, py))
 
 
         #bg
@@ -376,6 +425,7 @@ class TelemetryGraph:
 
         #draw lines
         pg.draw.lines(surface, colour_pallete['blue'], False, pts, 2)
+        if self.ghost_bool and self.ghost_vels is not None: pg.draw.lines(surface, colour_pallete['red2'], False, ghost_pts, 1)
 
         #draw title
         title_surf = font.render(self.title, True, colour_pallete['white'])
