@@ -340,58 +340,48 @@ def zoom(track_rect, clip_rect, scale, in_bool):
     
     return scale, (offset_x, offset_y)
 
-def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset):
+def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset, mini_map_data=None):
 
-    left_boundary = mesh[:, 0, :]
-    right_boundary = mesh[:, -1, :]
-    
-    left_pts = [(int(p[0] * scale + offset[0]), int(p[1] * scale + offset[1])) for p in left_boundary]
-    right_pts = [(int(p[0] * scale + offset[0]), int(p[1] * scale + offset[1])) for p in right_boundary]
+    #Draw boundaries
+    left_pts = transform_pts(mesh[:, 0, :], scale, offset)
+    right_pts = transform_pts(mesh[:, -1, :], scale, offset)
     
     pg.draw.lines(screen, colour_palette['RED'].value, True, left_pts, 2)
     pg.draw.lines(screen, colour_palette['GREEN'].value, True, right_pts, 2)
     
-    #racing line
-    
+    #racing line    
     max_v = np.max(velocities)
     min_v = np.min(velocities)
+    racing_line = np.vstack([racing_line, racing_line[0]])
 
     for i in range(len(racing_line) - 1):
-            p1 = racing_line[i]
-            p2 = racing_line[i+1]
-   
-            norm_v = (velocities[i] - min_v) / (max_v - min_v) #normalise
-            color = (int(255 *  norm_v), int(255 * (1-norm_v)), 0) #LERP BETWEEN RED and GREEN
+        norm_v = (velocities[i] - min_v) / (max_v - min_v) #normalise
+        color = (int(255 *  norm_v), int(255 * (1-norm_v)), 0) #LERP BETWEEN RED and GREEN
             
-            start_pos = (int(p1[0] * scale + offset[0]), int(p1[1] * scale + offset[1]))
-            end_pos = (int(p2[0] * scale + offset[0]), int(p2[1] * scale + offset[1]))
-            
-            pg.draw.line(screen, color, start_pos, end_pos, 4)
+        start = transform_pts([racing_line[i]], scale, offset)[0]
+        end = transform_pts([racing_line[i+1]], scale, offset)[0]
+        pg.draw.line(screen, color, start, end, 4)
     
-    # if not follow_car_bool: #draw mini map
-
-    #     # Find the bounds of the track
-    #     all_x = mesh[:, :, 0].flatten()
-    #     all_y = mesh[:, :, 1].flatten()
+    if mini_map_data:
+        m_rect = mini_map_data['rect']
+        m_scale = mini_map_data['scale']
+        m_off = mini_map_data['offset']        
     
-    #     min_x, max_x = np.min(all_x), np.max(all_x)
-    #     min_y, max_y = np.min(all_y), np.max(all_y)
+        m_left = transform_pts(mesh[::15, 0, :], m_scale, m_off) #slice to reduce number of points drawn
+        m_right = transform_pts(mesh[::15, -1, :], m_scale, m_off)
+    
+        #draw bg
+        pg.draw.rect(screen, colour_palette['BG_GREY'].value, mini_map_data['rect'])
+        pg.draw.rect(screen, colour_palette['WHITE'].value, m_rect, 1) #border
 
-    #     track_w = max_x - min_x
-    #     track_h = max_y - min_y
-
-    #     #set scale and offset
-    #     mini_scale = 0.5
-    #     mini_offset = (clip_rect[0] + clip_rect.width - (track_w/2), clip_rect[1]) 
+        #Draw boundaries
+        pg.draw.lines(screen, colour_palette['RED'].value, True, m_left, 1)
+        pg.draw.lines(screen, colour_palette['GREEN'].value, True, m_right, 1)
         
-    #     left_pts = [(int(p[0] * mini_scale + mini_offset[0]), int(p[1] * mini_scale + mini_offset[1])) for p in left_boundary[::15]] #slice to reduce number of points drawn
-    #     right_pts = [(int(p[0] * mini_scale + mini_offset[0]), int(p[1] * mini_scale + mini_offset[1])) for p in right_boundary[::15]]
-
-    #     #draw bg
-    #     pg.draw.rect(screen, colour_palette['BG_GREY'].value,)
-        
-    #     pg.draw.lines(screen, colour_palette['RED'].value, True, left_pts, 2)
-        # pg.draw.lines(screen, colour_palette['GREEN'].value, True, right_pts, 2)
+        # Draw Car Dot
+        cx = int(mini_map_data['car_pos'][0] * m_scale + m_off[0])
+        cy = int(mini_map_data['car_pos'][1] * m_scale + m_off[1])
+        pg.draw.circle(screen, colour_palette['ORANGE'].value, (cx, cy), 4)
 
 def calculate_auto_scale(mesh, clip_rect, padding=40):
     # Extract all X and Y coordinates from the mesh
@@ -419,14 +409,9 @@ def calculate_auto_scale(mesh, clip_rect, padding=40):
     return scale, (offset_x, offset_y)
 
 def get_car_position(sim_time, racing_line, time_array, scale, offset):
-
-
     racing_line = np.vstack([racing_line, racing_line[0]])
     car_x = np.interp(sim_time, time_array, racing_line[:, 0]) #LERP the car pos
     car_y = np.interp(sim_time, time_array, racing_line[:, 1])
-
-    car_x = car_x* scale + offset[0]
-    car_y = car_y* scale + offset[1]
 
     diffs = np.diff(racing_line, axis=0)
     angles = np.arctan2(diffs[:, 1], diffs[:, 0]) #find angles of heading in RAD
@@ -470,6 +455,9 @@ def draw_car(screen, pos, angle):
         rotated_pts.append((pos[0] + rx, pos[1] + ry))
 
     pg.draw.polygon(screen, colour_palette['ORANGE'].value, rotated_pts)
+
+def transform_pts(points, scale, offset):
+    return [(int(p[0] * scale + offset[0]), int(p[1] * scale + offset[1])) for p in points]
 
 def caculateAccelerations(vel, t):     
     a_arr = np.zeros(len(vel))
@@ -547,7 +535,7 @@ def main():
     pan = (0, 0)
     dragger = Drag()
     track_rect = None
-    follow_car_bool = True
+    follow_car_bool = False
     # Dividers
     dividers = Dividers(screen_shape)
 
@@ -673,13 +661,33 @@ def main():
 
         screen.set_clip(clip_rect)
         if mesh is not None:
-            render_offset = (offset[0] + pan[0], offset[1] + pan[1])
+            #raw car coords
+            car_world_pos, car_angle = get_car_position(sim_time, racing_line, best_time, 1.0, (0, 0))
+            
             if follow_car_bool:
-                pos, angle = get_car_position(sim_time, racing_line, best_time, scale, render_offset)
+                #car in center and track moves around it
+                render_offset = [clip_rect.centerx - (car_world_pos[0] * scale), 
+                                 clip_rect.centery - (car_world_pos[1] * scale)]
+                car_screen_pos = clip_rect.center
+                
+                mini_rect = pg.Rect(clip_rect.x + 10, clip_rect.y + 10, 200, 200)
+                m_scale, m_offset = calculate_auto_scale(mesh, mini_rect, padding=5)
+                mini_data = {
+                    'scale': m_scale,
+                    'offset': m_offset,
+                    'car_pos': car_world_pos,
+                    'rect': mini_rect
+                }
             else:
-                render_offset, pos, angle = follow_car(sim_time, racing_line, best_time, scale, clip_rect.center)
-            draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset)
-            draw_car(screen, pos, angle)
+                # car moving around track
+                render_offset = (offset[0] + pan[0], offset[1] + pan[1])
+                car_screen_pos = (car_world_pos[0] * scale + render_offset[0], 
+                                  car_world_pos[1] * scale + render_offset[1])
+                mini_data = None #no minimap
+
+
+            draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset, mini_data)
+            draw_car(screen, car_screen_pos, car_angle)
             throttle = get_currentThrottle(sim_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))
             center_panel.draw_zoom_btns(screen, font)
