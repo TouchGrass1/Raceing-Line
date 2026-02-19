@@ -43,9 +43,10 @@ default_variables = {
     'mass': 988,
     'weather': 'dry',
     'tyre': 'SOFT',
-    'lapNo': 1,
+    'lapNo': 0,
     'elevation': 0,
-    'temp': 20
+    'temp': 20,
+    'fuel': 1,
 }
 
 variable_options = {
@@ -56,4 +57,5 @@ variable_options = {
     'lapNo': [1, 70],
     'elevation': [-28, 2200],
     'temp': [0, 45],
+
 }

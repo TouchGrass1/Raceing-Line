@@ -4,7 +4,7 @@ import numpy as np
 class PhysicsConsts(Enum):
     TURNING_RADIUS = 5 #M
     MAX_RADIUS = 300  # meters
-    SPEED_OF_SOUND = 343  # m/s at sea level
+    #SPEED_OF_SOUND = 343  # m/s at sea level
     ABSOLUTE_ZERO = -273.15  # deg C
     VELOCITY_MAX = 112 #m/s
     POWER = 750000 #W

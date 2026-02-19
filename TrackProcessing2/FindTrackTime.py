@@ -160,8 +160,7 @@ def main(rand_bsp, radius, pixels_per_meter, variables):
     height = variables['elevation'] #m above sea level
     noLap = variables['lapNo']
     tyreType = variables['tyre']
-    if variables['weather'] == 'wet':
-        tyre_mu = tyre_mu / 2
+
 
     maxNoLap = 70 #maximum number of laps
     
@@ -169,6 +168,8 @@ def main(rand_bsp, radius, pixels_per_meter, variables):
     density = updateVar.updateDensity(pressure, temp)
 
     tyre_mu = updateVar.updateTyreWear(tyreType, noLap)
+    if variables['weather'] == 'wet':
+        tyre_mu = tyre_mu / 2
 
     x_loop = np.append(rand_bsp[:, 0], rand_bsp[0, 0])
     y_loop = np.append(rand_bsp[:, 1], rand_bsp[0, 1])

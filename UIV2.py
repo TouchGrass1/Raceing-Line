@@ -38,7 +38,7 @@ class TopPanel(BasePanel):
 
 
     def time_display(self, surface, time_val):
-        self._draw_text(surface, f"Time: {time_val:.2f}", self.x_margin + (self.even_spacing * 5), self.y)
+        self._draw_text(surface, f"Time: {int(time_val//60)}: {time_val%60:.2f}", self.x_margin + (self.even_spacing * 5), self.y)
 
     def lap_display(self, surface, lap_no):
         self._draw_text(surface, f"Lap: {lap_no:.2f}", self.x_margin + (self.even_spacing * 4), self.y)
@@ -86,19 +86,71 @@ class LeftPanel(BasePanel):
         height = width * 0.3
         x_margin = int((self.border_x - width) // 2)
         self.even_spacing = int(width // 6)
+        self.ghost_line = None
+        self.ghost_vels = None
+        self.ghost_times = None
+
         
 
         self.reset_btn = Button(x_margin, screen_shape[1] - 3*self.even_spacing, screen_shape, "Reset")
         self.pause_toggle = Toggle(x_margin, screen_shape[1] - 6*self.even_spacing, screen_shape, ["Pause", "Play"])
 
+        self.save_ghost_btn = Button(x_margin, screen_shape[1] - 9*self.even_spacing, screen_shape, "Save Ghost")
+        self.show_ghost_toggle = Toggle(x_margin, screen_shape[1] - 12*self.even_spacing, screen_shape, ["Show Ghost", "Hide Ghost"])
+
+        self.follow_car = Toggle(x_margin, screen_shape[1] - 15*self.even_spacing, screen_shape, ["Follow Car", "Stop Follow"])
+
     def draw(self, surface):
         self.reset_btn.draw(surface, self.font)
         self.pause_toggle.toggle_draw(surface, self.font)
+
+        self.save_ghost_btn.draw(surface, self.font)
+        self.show_ghost_toggle.toggle_draw(surface, self.font)
+
+        self.follow_car.toggle_draw(surface, self.font)
 
 
     def handle_event(self, event):
         self.reset_btn.handle_event(event)
         self.pause_toggle.change_state(event)
+
+        self.save_ghost_btn.handle_event(event)
+        self.show_ghost_toggle.change_state(event)
+
+        self.follow_car.change_state(event)
+
+
+    def save_ghost_func(self, racing_line, vels, times):
+        if self.save_ghost_btn.get_clicked():
+            self.ghost_line = racing_line
+            self.ghost_vels = vels
+            self.ghost_times = times
+
+    
+    def reset(self):
+        self.ghost_line = None
+        self.ghost_vels = None
+        self.ghost_times = None
+        self.show_ghost_toggle.set_state(0)
+        self.pause_toggle.set_state(0)
+
+    
+    def show_ghost_func(self, surface, scale, offset):
+        if self.show_ghost_toggle.get_state() == "Hide Ghost" and self.ghost_line is not None: 
+            max_v = np.max(self.ghost_vels)
+            min_v = np.min(self.ghost_vels)
+
+            for i in range(len(self.ghost_line) - 1):
+                    p1 = self.ghost_line[i]
+                    p2 = self.ghost_line[i+1]
+        
+                    norm_v = (self.ghost_vels[i] - min_v) / (max_v - min_v) #normalise
+                    color = (int(255 *  norm_v), 0, int(255 * (1-norm_v)), int(0.25*255)) #LERP BETWEEN RED and Blue, and 25% opacity
+                    
+                    start_pos = (int(p1[0] * scale + offset[0]), int(p1[1] * scale + offset[1]))
+                    end_pos = (int(p2[0] * scale + offset[0]), int(p2[1] * scale + offset[1]))
+                    
+                    pg.draw.line(surface, color, start_pos, end_pos, 3)
 
 
 # ---------- RIGHT PANEL ----------
@@ -114,7 +166,7 @@ class RightPanel(BasePanel):
         throttle_val=0.45
         brake_val=0.9
         fuel_val = 0.1
-        tyre_wear_val = 0.99
+        lap_val = default_variables['lapNo']
         self.window_size = 10
         
         self.slider_width, self.slider_height = int(panel_width * 15/16), int(self.panel_height * 0.03)
@@ -133,7 +185,7 @@ class RightPanel(BasePanel):
         #fuel slider
         self.fuel_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.8), self.slider_width_small, self.slider_height_small, 0, 1, fuel_val, "Fuel", True)
         #tyre wear slider
-        self.tyreWear_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.9), self.slider_width_small, self.slider_height_small, 0, 1, tyre_wear_val, "Tyre Wear", True)
+        self.lap_no_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.9), self.slider_width_small, self.slider_height_small, 0, 70, lap_val, "Lap Number", True)
 
         # Graphs
         self.speed_graph = TelemetryGraph((self.border_x + 5*(self.x_margin - self.border_x)), int(self.panel_height * 0.42), (panel_width - 10*(self.x_margin - self.border_x)), (panel_width - 10*(self.x_margin - self.border_x)), "Speed vs Time")
@@ -142,16 +194,21 @@ class RightPanel(BasePanel):
         #Window control
         self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.border_x)), 50, placeholder='Enter Window Size', is_password=False)
 
-    def update_health_bar_sliders(self, throttle_val, brake_val,):
+        #recalculate
+        self.recalculate_btn = Button((self.border_x + (panel_width//3)), int(self.panel_height * 0.1), self.screen_shape, 'Recalculate')
+
+    def update_health_bar_sliders(self, throttle_val, brake_val):
         self.throttle_slider = Slider(self.x_margin, int(self.panel_height * 0.2), self.slider_width, self.slider_height, 0, 1, throttle_val, "Throttle", False)
         self.brake_slider = Slider(self.x_margin, int(self.panel_height * 0.3), self.slider_width, self.slider_height, 0, 1, brake_val, "Brake", False)
+        
 
     def handle_event(self, event):
         self.tyre_toggle.change_state(event)
         self.fuel_slider.listen(event)
-        self.tyreWear_slider.listen(event)
+        self.lap_no_slider.listen(event)
         if self.window_input.handle_event(event):
             self.window_size = int(self.window_input.get_text())
+        self.recalculate_btn.handle_event(event)
         
     def draw(self, surface, sim_time):
         self._draw_text(surface, "Throttle", *self.throttle_pos)
@@ -160,10 +217,11 @@ class RightPanel(BasePanel):
         self.brake_slider.draw(surface, self.font)
         self.tyre_toggle.toggle_draw(surface, self.font)
         self.fuel_slider.draw(surface, self.font)
-        self.tyreWear_slider.draw(surface, self.font)
+        self.lap_no_slider.draw(surface, self.font)
         self.speed_graph.draw(surface, self.small_font, sim_time, self.window_size)
         self.window_input.draw(surface)
         #self.GForce_graph.draw(surface, self.small_font, sim_time)
+        self.recalculate_btn.draw(surface, self.font)
         return
 
 
@@ -180,7 +238,6 @@ class CenterPanel(BasePanel):
 
         self.zoom_in = Button( self.start_x + self.even_spacing*4, (screen_shape[1] - self.y_padding), screen_shape, "+", 'circle')
         self.zoom_out= Button( (self.start_x + self.even_spacing*4 + 2*(30/1080 * screen_shape[1])), (screen_shape[1] - self.y_padding), screen_shape, "-", 'circle')
-    5
     
     def draw_zoom_btns(self, surface, font):
         self.zoom_in.draw(surface, font)
@@ -274,8 +331,9 @@ def run_GA(variables, clip_rect):
     return racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration
 
 def zoom(track_rect, clip_rect, scale, in_bool):
-    zoom_step = 1.3 if in_bool else 0.7
-    scale = np.clip(scale * zoom_step, 0.01, 50.0)
+    zoom_step = 2 
+    if not in_bool: zoom_step = 1/zoom_step
+    scale = np.clip(scale * zoom_step, 0.5, 75)
   
     offset_x = clip_rect.centerx - (track_rect.centerx * scale)
     offset_y = clip_rect.centery - (track_rect.centery * scale)
@@ -294,6 +352,7 @@ def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset):
     pg.draw.lines(screen, colour_palette['GREEN'].value, True, right_pts, 2)
     
     #racing line
+    
     max_v = np.max(velocities)
     min_v = np.min(velocities)
 
@@ -308,6 +367,31 @@ def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset):
             end_pos = (int(p2[0] * scale + offset[0]), int(p2[1] * scale + offset[1]))
             
             pg.draw.line(screen, color, start_pos, end_pos, 4)
+    
+    # if not follow_car_bool: #draw mini map
+
+    #     # Find the bounds of the track
+    #     all_x = mesh[:, :, 0].flatten()
+    #     all_y = mesh[:, :, 1].flatten()
+    
+    #     min_x, max_x = np.min(all_x), np.max(all_x)
+    #     min_y, max_y = np.min(all_y), np.max(all_y)
+
+    #     track_w = max_x - min_x
+    #     track_h = max_y - min_y
+
+    #     #set scale and offset
+    #     mini_scale = 0.5
+    #     mini_offset = (clip_rect[0] + clip_rect.width - (track_w/2), clip_rect[1]) 
+        
+    #     left_pts = [(int(p[0] * mini_scale + mini_offset[0]), int(p[1] * mini_scale + mini_offset[1])) for p in left_boundary[::15]] #slice to reduce number of points drawn
+    #     right_pts = [(int(p[0] * mini_scale + mini_offset[0]), int(p[1] * mini_scale + mini_offset[1])) for p in right_boundary[::15]]
+
+    #     #draw bg
+    #     pg.draw.rect(screen, colour_palette['BG_GREY'].value,)
+        
+    #     pg.draw.lines(screen, colour_palette['RED'].value, True, left_pts, 2)
+        # pg.draw.lines(screen, colour_palette['GREEN'].value, True, right_pts, 2)
 
 def calculate_auto_scale(mesh, clip_rect, padding=40):
     # Extract all X and Y coordinates from the mesh
@@ -352,6 +436,24 @@ def get_car_position(sim_time, racing_line, time_array, scale, offset):
     
     return (car_x, car_y), car_angle
 
+def follow_car(sim_time, racing_line, time_array, scale, center):
+    #set car to center of screen and adjust track acordingly
+    racing_line = np.vstack([racing_line, racing_line[0]])
+    car_x = np.interp(sim_time, time_array, racing_line[:, 0]) #LERP the car pos
+    car_y = np.interp(sim_time, time_array, racing_line[:, 1])
+
+    diffs = np.diff(racing_line, axis=0)
+    angles = np.arctan2(diffs[:, 1], diffs[:, 0]) #find angles of heading in RAD
+    angles = np.append(angles, angles[0])
+    
+    car_angle = np.interp(sim_time, time_array, angles)
+
+    new_offset = [center[0] - (car_x * scale), center[1] - (car_y * scale)] #makes the car the center of the screen
+
+
+
+    return new_offset, center, car_angle
+
 def draw_car(screen, pos, angle):
     car_length = 20
     car_width = 18
@@ -393,6 +495,8 @@ def main():
     pg.init()
     clock = pg.time.Clock()
     start_time = time.time()
+    fps = 60
+    dt = 1/fps
 
     screen = pg.display.set_mode(flags=pg.FULLSCREEN)
     screen = pg.display.set_mode((1920,1080))
@@ -404,12 +508,12 @@ def main():
     pb_str = "00:00.000"
     best_time = [1]
     paused = False
-    pause_start_time = 0
-    total_paused_duration = 0
+    current_time = 0
+    sim_time = 0
 
 
     # Background surface (static)
-    background = pg.Surface(screen.get_size())
+    background = pg.Surface(screen_shape)
     background = background.convert()
     background.fill(colour_palette['BG_GREY'].value)
 
@@ -443,6 +547,7 @@ def main():
     pan = (0, 0)
     dragger = Drag()
     track_rect = None
+    follow_car_bool = True
     # Dividers
     dividers = Dividers(screen_shape)
 
@@ -463,6 +568,9 @@ def main():
                     start_time, variables = reset_sim()
                     pan = (0, 0)
                     scale, offset = calculate_auto_scale(mesh, clip_rect)
+                    left_panel.reset()
+                    right_panel.speed_graph.reset_telementry()
+
 
                 if center_panel.zoom_in.rect.collidepoint(event.pos):
                     scale, offset = zoom(track_rect, screen.get_clip(), scale, True)
@@ -470,20 +578,34 @@ def main():
                     scale, offset = zoom(track_rect, screen.get_clip(), scale, False)
                 if left_panel.pause_toggle.rect.collidepoint(event.pos):
                     paused = not paused
-                    if paused:
-                        pause_start_time = time.time()
-                    else:
-                        total_paused_duration += time.time() - pause_start_time
+
+                
+                if left_panel.follow_car.rect.collidepoint(event.pos):
+                    follow_car_bool = not follow_car_bool
+                
+                if left_panel.save_ghost_btn.rect.collidepoint(event.pos):
+                    right_panel.speed_graph.save_telementry()
+                if left_panel.save_ghost_btn.rect.collidepoint(event.pos):
+                    right_panel.speed_graph.update_ghost_bool()
+                
+                if right_panel.recalculate_btn.rect.collidepoint(event.pos):
+                        top_panel.show_popup = True
+                        top_panel.draw_popup(screen)
+                        pg.display.flip()      
+                        racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+                        top_panel.show_popup = False
+
+                
 
             left_panel.handle_event(event)
             track_dropdown.handle_event(event)
             right_panel.handle_event(event)
             top_panel.handle_event(event)
             center_panel.handle_event(event)
+            
 
         if variables['tyre'] != right_panel.tyre_toggle.get_state():
             variables['tyre'] = right_panel.tyre_toggle.get_state()
-            racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
 
         # track dropdown
         if variables['track'] != track_dropdown.get_track():
@@ -498,22 +620,24 @@ def main():
 
                     variables['track'] = track_filename
                     variables['custom_path'] = path
-                    pan = (0,0)
-                    top_panel.show_popup = True
-                    top_panel.draw_popup(screen)
-                    pg.display.flip()       
-                    racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+                    changed_track = True
                 else:
                     track_dropdown.set_track(variables['track'])
                     print("Import cancelled")
+                    changed_track = False
             else:
                 variables['track'] = new_selection
                 variables['custom_path'] = None
+                changed_track = True
+
+            if changed_track:
                 pan = (0,0)
                 top_panel.show_popup = True
                 top_panel.draw_popup(screen)
-                pg.display.flip()        
+                pg.display.flip()   
+                left_panel.reset()     
                 racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+                right_panel.speed_graph.reset_telementry()
             
             right_panel.speed_graph.precompute_telemetry(best_time, vels)
             right_panel.GForce_graph.precompute_telemetry(best_time, acceleration)
@@ -523,8 +647,12 @@ def main():
             print(f"Track changed to: {variables['track']}")
             print("----")
 
-        if not paused: 
-            current_time = (time.time() - start_time) - total_paused_duration
+        #time stuff
+        if not paused:
+            if right_panel.lap_no_slider.get_clicked():
+                current_time = right_panel.lap_no_slider.get_value() * best_time[-1]
+            else:
+                current_time+= dt
         sim_time = current_time % best_time[-1]
 
 
@@ -546,17 +674,22 @@ def main():
         screen.set_clip(clip_rect)
         if mesh is not None:
             render_offset = (offset[0] + pan[0], offset[1] + pan[1])
+            if follow_car_bool:
+                pos, angle = get_car_position(sim_time, racing_line, best_time, scale, render_offset)
+            else:
+                render_offset, pos, angle = follow_car(sim_time, racing_line, best_time, scale, clip_rect.center)
             draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset)
-            pos, angle = get_car_position(sim_time, racing_line, best_time, scale, render_offset)
             draw_car(screen, pos, angle)
             throttle = get_currentThrottle(sim_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))
             center_panel.draw_zoom_btns(screen, font)
+            left_panel.save_ghost_func(racing_line, vels, best_time)
+            left_panel.show_ghost_func(screen, scale, render_offset)
         
         screen.set_clip(None)
         
         
-        clock.tick(60)
+        clock.tick(fps)
         pg.display.flip()
 
 
