@@ -22,7 +22,8 @@ def findMaxVelocity(radius, mass, density, mu):
     return maxVel
 
 def findVelocities(maxVelArr, dists, mass, density, noLap, tyreType):
-    n = len(maxVelArr)
+    n = len(dists)
+
     vel = np.zeros(n)
 
     # Forward pass acceleration limit

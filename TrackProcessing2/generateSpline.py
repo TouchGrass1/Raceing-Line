@@ -10,7 +10,7 @@ from skimage.morphology import skeletonize
 from scipy import interpolate
 
 from TrackProcessing2.config import config, real_properties
-#from config import config, real_properties
+#from config import config, real_properties, default_variables
 
 from pathlib import Path
 from PIL import Image
@@ -40,7 +40,11 @@ def catmull_rom_spline(points):
     sample_per_segments = 20
 
     points = np.array(points, dtype=float)
-    points = np.vstack([points[-1], points, points[0], points[1]]) #ensure closed curve by adding the last point and the start and the first two points to the end
+    if np.allclose(points[0], points[-1]):
+        points = points[:-1]
+
+
+    points = np.vstack([points[-1], points, points[0], points[1]]) #needs to be in this form for catmul rom spline with extra points
     num_points = len(points) # number of control points 
     result = []
 
@@ -78,11 +82,11 @@ def catmull_rom_spline(points):
     return curve
 
 def spline_properties(curve):
-
-    diffs = np.diff(np.vstack([curve, curve[0]]), axis=0) #esnure return to start
+    curve = check_loop(curve)
+    diffs = np.diff(curve, axis=0)
     seg_lengths = np.linalg.norm(diffs, axis=1)
     cumsum = np.concatenate(([0.0], np.cumsum(seg_lengths)))
-    cumsum = cumsum[:-1]
+    #cumsum = cumsum[:-1]
     total_length = cumsum[-1]
 
     x = curve[:,0]
@@ -141,66 +145,76 @@ def generate_mesh(curve, track_width, normals):
 def b_spline(pts):
     x = pts[:,0]
     y = pts[:,1]
-    tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree
+
+    if np.allclose(pts[0], pts[-1]):
+        x = x[:-1]
+        y = y[:-1]
+
+
+
+    #fit the spline
+    tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree, s=0 forces the spline through all data points
     u_fine = np.linspace(0, 1, config["sample_size"]) #number of points to have on the radius
+    
+    #find position and derivitives
     x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
     dx, dy = interpolate.splev(u_fine, tck, der=1)
     d2x, d2y = interpolate.splev(u_fine, tck, der=2)
     curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
 
-    pts = np.column_stack([x_fine, y_fine])
-    if not np.allclose(pts[0], pts[-1]):
-        pts = np.vstack([pts, pts[0]])
-        x = pts[:,0]
-        y = pts[:,1]
-        tck, _ = interpolate.splprep([x, y], s=0, per=True) #returns t = knots, c = control points, k= degree
-        u_fine = np.linspace(0, 1, config["sample_size"]) #number of points to have on the radius
-        x_fine, y_fine = interpolate.splev(u_fine, tck, der=0) #evaluates the spline for 'sample_size' evenly spaced distance values
-        dx, dy = interpolate.splev(u_fine, tck, der=1)
-        d2x, d2y = interpolate.splev(u_fine, tck, der=2)
-        curvature = (dx*d2y - dy*d2x) / (dx**2 + dy**2)**1.5
+
     return np.column_stack([x_fine, y_fine]), curvature
 
+def check_loop(arr):
+    if not np.allclose(arr[0], arr[-1]):
+        arr = np.vstack((arr, arr[0]))
+    return arr
 
 def random_points(mesh):
-    rand_pts_idx = []
-    num_pts_across = config["num_points_across"]
-    rangeVal = config["rangepercent"]*num_pts_across
+    num_pts_across = config["num_points_across"] - 1
+    rangeVal = config["rangepercent"] * num_pts_across
     step = ceil(len(mesh) / config["sample_size"])
-
-    num_pts_across -= 1 #to ensure not out of range
-    current_idx = random.randint(0, num_pts_across)
-
-    mean = 0
-    for i in range(0, len(mesh), step):
-        target_idx = (num_pts_across) // 2 #the middle
-        bias_factor = 0.1 # how much it pulls towards the center
+    
+    start_idx = random.randint(0, num_pts_across) #random starting point
+    current_idx = start_idx
+    
+    rand_pts_idx = []
+    mesh_indices = list(range(0, len(mesh), step))
+    total_steps = len(mesh_indices)
+    
+    bias_factor = config["bias_factor"]
+    
+    for i in range(total_steps):
+        progress = i / total_steps #calculate loop progress 0->1
+        
+        center_target = num_pts_across // 2
+        target_idx = (center_target * (1 - progress)) + (start_idx * progress)
+        
         steered_center = (current_idx * (1 - bias_factor)) + (target_idx * bias_factor)
         
-        start = max(0, int(steered_center - rangeVal))
-        end = min(num_pts_across, int(steered_center + rangeVal)) #ensure not out of range
         
-        mean += start
+        start = max(0, int(steered_center - rangeVal))
+        end = min(num_pts_across, int(steered_center + rangeVal))
+        
         current_idx = random.randint(start, end)
         rand_pts_idx.append(current_idx)
-    
-    #print('mean index: ',mean/len(rand_pts_idx))
-    for i in range(len(rand_pts_idx)-2, -1, -1):
-        idx_old = rand_pts_idx[i+1]
-        idx_new = rand_pts_idx[i]
 
-        if abs(idx_new - idx_old) > rangeVal:
-            start = max(0, int(idx_old - rangeVal))
-            end = min(len(mesh[i]) -1,int(idx_old + rangeVal))
-            rand_pts_idx[i] = random.randint(start, end)
-    
+
+    #rand_pts_idx[-1] = start_idx
+
+
     rand_pts = []
-    for i, row in enumerate(range(0, len(mesh), step)):
+    for i, row_idx in enumerate(mesh_indices):
         actual_pt_idx = rand_pts_idx[i]
-        rand_pts.append(mesh[row][actual_pt_idx])
+        rand_pts.append(mesh[row_idx][actual_pt_idx])
 
-    return np.array(rand_pts)
-
+    # Clean duplicates
+    rand_pts = np.array(rand_pts)
+    dist = np.linalg.norm(np.diff(rand_pts, axis=0), axis=1)
+    mask = np.concatenate(([True], dist > 1e-10))
+    print(rand_pts[mask])
+    return rand_pts[mask]
+    
 
 def plot_boundaries(mesh, curve):
     left_boundary = mesh[:,0,:]
@@ -375,21 +389,26 @@ def main(variables):
     approx = resample_points(skeleton_points_3d) #cv2 requires it in this format for contours
 
 
+
     center_line = catmull_rom_spline(approx)
     center_line_properties = spline_properties(center_line)
+
+    
 
     convertion = center_line_properties['length'] / real_properties[track_name]['real_track_length'] #num of pixels per meter
     track_width_pixels = convertion * real_properties[track_name]['real_track_width']
     print('num of pixels per meter: ', convertion)
 
     
-    mesh = generate_mesh(center_line, track_width_pixels, center_line_properties['normal']) 
+    mesh = generate_mesh(center_line, track_width_pixels, center_line_properties['normal'])
 
-    
-    random_pts = random_points(mesh)
+    # random_pts = random_points(mesh) 
+    # random_pts = check_loop(random_pts) #check if complete loop
 
-    rand_bsp, curvature = b_spline(random_pts)
-    radius = 1/abs(curvature)
+    # random_pts = random_points(mesh)
+
+    # rand_bsp, curvature = b_spline(random_pts)
+    # radius = 1/abs(curvature)
     #print(repr(random_pts))
  
 
@@ -397,18 +416,17 @@ def main(variables):
 
     
 
+    # plot_spline(center_line, approx)
     # plot_img(img_arr)
     # plot_skeleton(skeleton_points, binary)
     # plot_approx(approx, binary)
-    # plot_spline(center_line, approx)
     # plot_spline(rand_bsp, random_pts)
     # plot_bspline(rand_bsp, random_pts, mesh, curvature)
     # plot_boundaries(mesh, center_line)
     # plot_mesh(mesh, img_arr)
-    #plot_everything(mesh, center_line, approx, rand_bsp, random_pts)
+    # plot_everything(mesh, center_line, approx, rand_bsp, random_pts)
     return approx, center_line, center_line_properties, mesh
 
 
-
-
-    main()
+# if __name__ == "__main__":
+#         main(default_variables)

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import numpy as np
 
-from TrackProcessing2.genetic_algorithm import main as ga
+from TrackProcessing2.ga_v2 import main as ga
 from TrackProcessing2.config import config, real_properties, default_variables, variable_options
 
 
