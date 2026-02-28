@@ -308,27 +308,34 @@ class EntryBox:
         if event.type == pg.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
                 self.active = True
+                self.color = self.color_active
             else:
                 self.active = False
-            self.color = self.color_active if self.active else self.color_inactive
+                self.color = self.color_inactive
         if event.type == pg.KEYDOWN:
             if self.active:
                 if event.key == pg.K_RETURN:
-                    if self.is_password:
-                        if self.text == self.pwd:
-                            print("Correct Password")
-                            self.text = ''
-                            return True
+                    if self.text != '':
+                        if self.is_password:
+                            if self.text == self.pwd:
+                                print("Correct Password")
+                                self.text = ''
+                                return True
                     else:                        
                         return True
                     
                 elif event.key == pg.K_BACKSPACE:
                     self.text = self.text[:-1]
                 else:
-                    self.text += event.unicode
+                    if len(self.text) < 10:
+                        self.text += event.unicode
                 self.txt_surface = self.font.render(self.text, True, self.color)
         if not self.active:
-            self.txt_surface = self.font.render(self.placeholder, True, self.color)
+            if self.text == '':
+                self.txt_surface = self.font.render(self.placeholder, True, self.color)
+            else:
+                self.txt_surface = self.font.render(self.text, True, self.color)
+
     def get_text(self):
         return self.text
 
