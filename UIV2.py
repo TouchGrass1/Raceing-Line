@@ -18,21 +18,52 @@ class BasePanel:
     def __init__(self, screen_shape, font):
         self.screen_shape = screen_shape
         self.font = font
+        DIVIDER_THICKNESS = 3
+
+        #panel bounds
+        self.top_panel_end_y = screen_shape[1] // 6
+        self.right_panel_start_x = int(0.8 * screen_shape[0])
+        self.left_panel_end_x = int(0.1 * screen_shape[0])
+        self.right_pages_end_y = int(0.7 * screen_shape[1])
+        self.right_pages_width = screen_shape[0] - self.right_panel_start_x
+
+
+        #dividers
+        self.dividers = {
+            "top_panel": Divider(0, self.top_panel_end_y, self.right_panel_start_x, DIVIDER_THICKNESS),
+            "right_panel": Divider(self.right_panel_start_x, 0, DIVIDER_THICKNESS, screen_shape[1]),
+            "left_panel": Divider(self.left_panel_end_x, self.top_panel_end_y, DIVIDER_THICKNESS, screen_shape[1] - self.top_panel_end_y),
+            "right_pages": Divider(self.right_panel_start_x, self.right_pages_end_y, self.right_pages_width, DIVIDER_THICKNESS),
+        }
+
 
     def _draw_text(self, surface, text, x, y, colour="WHITE"):
         text_surface = self.font.render(text, True, colour_palette[colour].value)
         surface.blit(text_surface, (x, y))
+    
+    def draw_dividers(self, screen):
+        for divider in self.dividers.values():
+            divider.draw(screen)
 
+    def get(self, name):
+        return self.dividers.get(name)
+
+class Divider:
+    def __init__(self, x, y, w, h):
+        self.rect = pg.Rect(x, y, w, h)
+
+    def draw(self, screen):
+        pg.draw.rect(screen, colour_pallete['line grey'], self.rect)
 
 # ---------- TOP PANEL ----------
 class TopPanel(BasePanel):
     def __init__(self, screen_shape, font):
         super().__init__(screen_shape, font)
-        self.border_x = int(0.8 * screen_shape[0])
-        self.even_spacing = int(self.border_x // 6)
+
+        self.even_spacing = int(self.right_panel_start_x // 6)
         self.x_margin = 0
-        self.y = 60
-        self.screen_shape = screen_shape
+        self.y = 60 #level at which text is drawn
+
         self.weather_toggle = Toggle((self.x_margin + self.even_spacing), self.y, self.screen_shape, variable_options['weather'])
         self.show_popup = False
 
@@ -81,10 +112,8 @@ class TopPanel(BasePanel):
 class LeftPanel(BasePanel):
     def __init__(self, screen_shape, font):
         super().__init__(screen_shape, font)
-        self.border_x = int(0.1 * screen_shape[0])
-        width = int(self.border_x * 0.85)
-        height = width * 0.3
-        x_margin = int((self.border_x - width) // 2)
+        width = int(self.left_panel_end_x * 0.85)
+        x_margin = int((self.left_panel_end_x - width) // 2)
         self.even_spacing = int(width // 6)
         
         self.ghost_line = None
@@ -159,17 +188,19 @@ class RightPanel(BasePanel):
     def __init__(self, screen_shape, font, small_font):
         super().__init__(screen_shape, font)
         self.small_font = small_font
-        self.border_x = int(0.8 * screen_shape[0])
-        self.x_margin = int(self.border_x + (screen_shape[0] // 128))
-        panel_width = int(screen_shape[0] - self.border_x)
+        self.right_panel_start_x = int(0.8 * screen_shape[0])
+        self.x_margin = int(self.right_panel_start_x + (screen_shape[0] // 128))
+        panel_width = int(screen_shape[0] - self.right_panel_start_x)
         self.panel_height = screen_shape[1]
-        self.screen_shape = screen_shape
+
+        #default values
         throttle_val=0.45
         brake_val=0.9
         fuel_val = 0.1
         lap_val = default_variables['lapNo']
         self.window_size = 10
-        
+
+        #components 
         self.slider_width, self.slider_height = int(panel_width * 15/16), int(self.panel_height * 0.03)
         self.slider_width_small, self.slider_height_small = int(panel_width * 10/16), int(self.panel_height * 0.02)
         # throttle slider
@@ -181,7 +212,7 @@ class RightPanel(BasePanel):
         self.brake_pos = (self.x_margin, int(self.panel_height * 4/15))
 
         # tyre toggle
-        self.tyre_toggle = Toggle((self.border_x + (panel_width//3)), int(self.panel_height * 0.35), self.screen_shape, variable_options['tyre'])
+        self.tyre_toggle = Toggle((self.right_panel_start_x + (panel_width//3)), int(self.panel_height * 0.35), self.screen_shape, variable_options['tyre'])
 
         #fuel slider
         self.fuel_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.8), self.slider_width_small, self.slider_height_small, 0, 1, fuel_val, "Fuel", True)
@@ -189,14 +220,14 @@ class RightPanel(BasePanel):
         self.lap_no_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.9), self.slider_width_small, self.slider_height_small, 0, 70, lap_val, "Lap Number", True)
 
         # Graphs
-        self.speed_graph = TelemetryGraph((self.border_x + 5*(self.x_margin - self.border_x)), int(self.panel_height * 0.42), (panel_width - 10*(self.x_margin - self.border_x)), (panel_width - 10*(self.x_margin - self.border_x)), "Speed vs Time")
-        self.GForce_graph = TelemetryGraph((self.border_x + 13*(self.x_margin - self.border_x)), int(self.panel_height * 0.5), (panel_width - 20*(self.x_margin - self.border_x)), (panel_width - 20*(self.x_margin - self.border_x)), "G Force")
+        self.speed_graph = TelemetryGraph((self.right_panel_start_x + 5*(self.x_margin - self.right_panel_start_x)), int(self.panel_height * 0.42), (panel_width - 10*(self.x_margin - self.right_panel_start_x)), (panel_width - 10*(self.x_margin - self.right_panel_start_x)), "Speed vs Time")
+        self.GForce_graph = TelemetryGraph((self.right_panel_start_x + 13*(self.x_margin - self.right_panel_start_x)), int(self.panel_height * 0.5), (panel_width - 20*(self.x_margin - self.right_panel_start_x)), (panel_width - 20*(self.x_margin - self.right_panel_start_x)), "G Force")
 
         #Window control
-        self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.border_x)), 50, placeholder='Enter Window Size', is_password=False)
+        self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.right_panel_start_x)), 50, placeholder='Enter Window Size', is_password=False)
 
         #recalculate
-        self.recalculate_btn = Button((self.border_x + (panel_width//3)), int(self.panel_height * 0.1), self.screen_shape, 'Recalculate')
+        self.recalculate_btn = Button((self.right_panel_start_x + (panel_width//3)), int(self.panel_height * 0.1), self.screen_shape, 'Recalculate')
 
     def update_health_bar_sliders(self, throttle_val, brake_val):
         self.throttle_slider = Slider(self.x_margin, int(self.panel_height * 0.2), self.slider_width, self.slider_height, 0, 1, throttle_val, "Throttle", False)
@@ -538,7 +569,7 @@ def main():
     track_rect = None
     follow_car_bool = False
     # Dividers
-    dividers = Dividers(screen_shape)
+    dividers = BasePanel(screen_shape, font)
 
 
 
@@ -648,7 +679,7 @@ def main():
         
         #DRAWING
         screen.blit(background, (0, 0))
-        dividers.draw(screen)
+        dividers.draw_dividers(screen)
         left_panel.draw(screen)
         right_panel.draw(screen, sim_time)
         

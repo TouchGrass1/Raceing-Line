@@ -166,40 +166,6 @@ class Toggle(Button):
         self.states[state_num]
     
 
-
-    
-
-class Divider:
-    def __init__(self, x, y, w, h):
-        self.rect = pg.Rect(x, y, w, h)
-
-    def draw(self, screen):
-        pg.draw.rect(screen, colour_pallete['line grey'], self.rect)
-
-
-class Dividers:
-    DIVIDER_THICKNESS = 3
-
-    def __init__(self, screen_shape):
-        top_panel_border_y = screen_shape[1] // 6
-        right_panel_border_x = int(0.8 * screen_shape[0])
-        left_panel_border_x = int(0.1 * screen_shape[0])
-        right_pages_border_y = int(0.7 * screen_shape[1])
-        right_pages_width = screen_shape[0] - right_panel_border_x
-
-        self.dividers = {
-            "top_panel": Divider(0, top_panel_border_y, right_panel_border_x, self.DIVIDER_THICKNESS),
-            "right_panel": Divider(right_panel_border_x, 0, self.DIVIDER_THICKNESS, screen_shape[1]),
-            "left_panel": Divider(left_panel_border_x, top_panel_border_y, self.DIVIDER_THICKNESS, screen_shape[1] - top_panel_border_y),
-            "right_pages": Divider(right_panel_border_x, right_pages_border_y, right_pages_width, self.DIVIDER_THICKNESS),
-        }
-
-    def draw(self, screen):
-        for divider in self.dividers.values():
-            divider.draw(screen)
-
-    def get(self, name):
-        return self.dividers.get(name)
         
 class Slider:
     def __init__(self, x, y, w, h, min_val, max_val, initial_val, label, active):
