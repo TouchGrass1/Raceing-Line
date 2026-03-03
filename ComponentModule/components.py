@@ -16,22 +16,25 @@ colour_pallete = {
 
 class Button:
     def __init__(self, x, y, screen_shape, label, size='normal'):
+        #button shape
         if size == 'normal':
             self.width = 150/1920 * screen_shape[0]
             self.height = 30/1080 * screen_shape[1]
         elif size == 'circle':
             self.height = 30/1080 * screen_shape[1]
             self.width = self.height
+        
         self.rect = pg.Rect(x, y, self.width, self.height)
-        self.clicked = False
+
+        self.clicked = False #check if the button was clicked, resets after get_clicked is called
         self.clicking = False # To handle holding down the button
-        self.hover = False
-        self.label = label
+        self.hover = False #to handle hover state
+        self.label = label #text on button
 
     def draw(self, screen, font):
-        if self.clicking: colour = colour_pallete['blue']
-        elif self.hover: colour = colour_pallete['red2']
-        else: colour = colour_pallete['red']
+        if self.clicking: colour = colour_pallete['blue'] #mouse is down on the button
+        elif self.hover: colour = colour_pallete['red2'] #mouse if over the button
+        else: colour = colour_pallete['red'] #default
         pg.draw.rect(screen, colour, self.rect, border_radius= 20)
         label_text = font.render(self.label, True, colour_pallete['white'])
         label_rect = label_text.get_rect(center=self.rect.center)
@@ -40,17 +43,22 @@ class Button:
     def handle_event(self, event):
         if event.type == pg.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
-                self.clicking = True
+                self.clicking = True #start tracking mouse hold
         if event.type == pg.MOUSEBUTTONUP:
             if self.clicking and self.rect.collidepoint(event.pos):
-                self.clicked = True
+                self.clicked = True #register only if mouse is released on the button
             self.clicking = False
-        
+
+        self.check_hover(event)
+ 
+
+    def check_hover(self, event):
         if event.type == pg.MOUSEMOTION:
             if self.rect.collidepoint(event.pos):
                 self.hover = True
             else:
                 self.hover = False
+
     def get_clicked(self):
         if self.clicked:
             self.clicked = False
@@ -59,27 +67,29 @@ class Button:
     
 class Dropdown(Button):
     def __init__(self, x, y, screen_shape, label, options):
-        super().__init__(x, y, screen_shape, label)
-        self.options = options
-        self.expanded = False
-        self.selected_option = label
+        super().__init__(x, y, screen_shape, label) #super button
+        self.options = options #list of options
+        self.expanded = False 
+        self.selected_option = label #current selected option
         self.x= x
         self.y = y
         #print('1', self.selected_option)
-        self.hover_options = -1
+        self.hover_options = -1 #to track which option is being hovered, -1 means none
         self.option_rects = [pg.Rect(x, y + (i+1)*self.height, self.width, self.height) for i in range(len(options))]
+
     def draw(self, screen, font):
-        
         if self.expanded:
+            #draw main button
             pg.draw.rect(screen, colour_pallete['blue'], self.rect, border_top_left_radius= 20, border_top_right_radius= 20)
             label_text = font.render(self.label, True, colour_pallete['white'])
             label_rect = label_text.get_rect(center=self.rect.center)
             screen.blit(label_text, label_rect)
+            #draw options
             for i, option in enumerate(self.options):
                 if i == self.hover_options: colour = colour_pallete['red2'] #hover
                 else: colour = colour_pallete['line grey']
                 if i == len(self.options) - 1:
-                    pg.draw.rect(screen, colour, self.option_rects[i], border_bottom_left_radius= 20, border_bottom_right_radius= 20) #last option
+                    pg.draw.rect(screen, colour, self.option_rects[i], border_bottom_left_radius= 20, border_bottom_right_radius= 20) #last option has rounded corners
                 else:
                     pg.draw.rect(screen, colour, self.option_rects[i])
                 option_text = font.render(option, True, colour_pallete['white'])
@@ -89,31 +99,29 @@ class Dropdown(Button):
                 
     def handle_event(self, event):
         
-        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-            if self.rect.collidepoint(event.pos) and not self.expanded: #click once and hold on main button:
+        if event.type == pg.MOUSEBUTTONDOWN and event.button == 1: #left click
+            if self.rect.collidepoint(event.pos) and not self.expanded: #click once on main button:
                 self.expanded = True
 
-            elif self.expanded: #click on options
+            elif self.expanded: #check which option is clicked
                 for i, rect in enumerate(self.option_rects):
-                    if rect.collidepoint(event.pos) and self.options[i] != self.selected_option:
+                    if rect.collidepoint(event.pos):
                         self.selected_option = self.options[i]
                         self.label = self.selected_option
                         self.expanded = False
                         print('2', self.selected_option)
         if event.type == pg.MOUSEBUTTONUP and not self.rect.collidepoint(event.pos):
                 self.expanded = False
-
+                
+        #check for hover over options
         if event.type == pg.MOUSEMOTION and self.expanded:
             self.hover_options = -1
             for i, rect in enumerate(self.option_rects):
                 if rect.collidepoint(event.pos):
                     self.hover_options = i
                     break
-        elif event.type == pg.MOUSEMOTION:
-            if self.rect.collidepoint(event.pos):
-                self.hover = True
-            else:
-                self.hover = False
+
+        self.check_hover(event) #over main button
 
 
     def get_track(self):
@@ -124,46 +132,40 @@ class Dropdown(Button):
 
     def update_options(self, new_option):
         if new_option not in self.options:
-                        self.options.pop()
-                        self.options.append(new_option)
-                        self.options.append('import')
-                        self.option_rects = [pg.Rect(self.x, self.y + (i+1)*self.height, self.width, self.height) for i in range(len(self.options))]
-                        self.selected_option = new_option
+                        self.options.pop() #remove import since it should always be last
+                        self.options.append(new_option) #add new option
+                        self.options.append('import') #add import back
+                        self.option_rects = [pg.Rect(self.x, self.y + (i+1)*self.height, self.width, self.height) for i in range(len(self.options))] #update rects
+                        self.selected_option = new_option #select new option
+                        self.label = new_option
 
 class Toggle(Button):
     def __init__(self, x, y, screen_shape, states):
-        super().__init__(x, y, screen_shape, states)
+        super().__init__(x, y, screen_shape, states) #super button
         self.states = states
         self.current_state = 0
+        self.label = self.states[self.current_state] #current state
     
     def change_state(self, event):
+
         if event.type == pg.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
                 self.clicking = True
         if event.type == pg.MOUSEBUTTONUP:
             if self.clicking and self.rect.collidepoint(event.pos):
-                self.current_state = (self.current_state + 1) % len(self.states)
+                self.current_state = (self.current_state + 1) % len(self.states) #cycle through states if clicked
             self.clicking = False
-        
-        if event.type == pg.MOUSEMOTION:
-            if self.rect.collidepoint(event.pos):
-                self.hover = True
-            else:
-                self.hover = False
+
+        self.check_hover(event)
+        self.label = self.states[self.current_state]
+
     def get_state(self):
         return self.states[self.current_state]
     
     def set_state(self, state_num):
         self.states[state_num]
     
-    def toggle_draw(self, screen, font):
-        if self.clicking: colour = colour_pallete['blue']
-        elif self.hover: colour = colour_pallete['red2']
-        else: colour = colour_pallete['red']
-        pg.draw.rect(screen, colour, self.rect, border_radius= 20)
-        label_text = font.render(self.states[self.current_state], True, colour_pallete['white'])
-        label_rect = label_text.get_rect(center=self.rect.center)
-        screen.blit(label_text, label_rect)
+
 
     
 
@@ -178,7 +180,7 @@ class Divider:
 class Dividers:
     DIVIDER_THICKNESS = 3
 
-    def __init__(self, screen_shape, ):
+    def __init__(self, screen_shape):
         top_panel_border_y = screen_shape[1] // 6
         right_panel_border_x = int(0.8 * screen_shape[0])
         left_panel_border_x = int(0.1 * screen_shape[0])
@@ -203,59 +205,56 @@ class Slider:
     def __init__(self, x, y, w, h, min_val, max_val, initial_val, label, active):
         self.active = active
         self.rect = pg.Rect(x, y, w, h)
+        
+        #values
         self.min = min_val
         self.max = max_val
         self.val = initial_val
-        self.target_val = initial_val
         self.oldval = initial_val
+
         self.label = label
         self.dragging = False
-        self.handle_x = x + (initial_val - min_val)/(max_val - min_val) * w
+        self.handle_x = x + (initial_val - min_val)/(max_val - min_val) * w #posistion of handle
         self.font = pg.font.Font(None, 30)
-        self.lerp_speed = 5
         self.clicked = False
         
 
     def draw(self, screen, font):
-        # Draw slider track
+        #draw slider track
         pg.draw.rect(screen, colour_pallete['subtle grey'], self.rect, border_radius=23)
-
         
         if self.active:        
-            # Draw handle
-            pg.draw.circle(screen, (255, 255, 255), 
+            #draw handle
+            pg.draw.circle(screen, colour_pallete['white'], 
                             (int(self.handle_x), self.rect.centery), 10)
             
-            # Draw labels
-            label_text = font.render(self.label, True, (255,255,255))
+            #draw labels
+            label_text = font.render(self.label, True, colour_pallete['white'])
             screen.blit(label_text, (self.rect.x - 20, self.rect.y - 30))
             
-            min_text = font.render(f"{self.min:.1f}", True, (255,255,255))
-            screen.blit(min_text, (self.rect.left - 40, self.rect.centery))
+            min_text = font.render(f"{self.min:.1f}", True, colour_pallete['white'])
+            screen.blit(min_text, (self.rect.left - 40, self.rect.centery)) #add small offset to avoid everlapping with handle
             
-            max_text = font.render(f"{self.max:.1f}", True, (255,255,255))
+            max_text = font.render(f"{self.max:.1f}", True, colour_pallete['white'])
             screen.blit(max_text, (self.rect.right + 10, self.rect.centery ))
             
-            val_text = font.render(f"{self.val:.2f}", True, (255,255,255))
+            val_text = font.render(f"{self.val:.2f}", True, colour_pallete['white'])
             screen.blit(val_text, (self.handle_x - 15, self.rect.bottom + 5))
         
+        #health bar sliders
         else:
-            x = (self.val - self.min)/(self.max - self.min) * self.rect.width
+            x = (self.val - self.min)/(self.max - self.min) * self.rect.width #calculate width of filled part based on value
             rect = pg.Rect(self.rect.left, self.rect.top, x, self.rect.height )
             pg.draw.rect(screen, colour_pallete['red2'], rect, border_radius=23)
             
-            val_text = self.font.render(f"{self.val*100}%", 1, colour_pallete['white'])
+            #draw labels
+            val_text = self.font.render(f"{self.val*100}%", 1, colour_pallete['white']) #display value as %
             pos = (self.rect.right - val_text.get_width(), self.rect.bottom + val_text.get_height())
             screen.blit(val_text, pos)
 
-    def smooth_update(self, target, dt):
-        if not self.active:
-            diff = target - self.val
-            self.val += diff * self.lerp_speed * dt
-            
-            self.handle_x = self.rect.left + ((self.val - self.min) / (self.max - self.min)) * self.rect.width #LERP
 
-    def listen(self, event):
+
+    def handle_event(self, event):
         x, y = pg.mouse.get_pos()
 
         if self.rect.collidepoint(x, y):
@@ -269,7 +268,6 @@ class Slider:
         if self.dragging:           
             self.handle_x = np.clip(x, self.rect.left, self.rect.right)
             self.val = self.min + (self.handle_x - self.rect.left)/self.rect.width * (self.max - self.min)
-            self.target_val = self.val
 
     def get_clicked(self):
         if self.clicked:

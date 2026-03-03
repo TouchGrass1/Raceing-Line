@@ -28,8 +28,8 @@ class BasePanel:
 class TopPanel(BasePanel):
     def __init__(self, screen_shape, font):
         super().__init__(screen_shape, font)
-        self.end_x = int(0.8 * screen_shape[0])
-        self.even_spacing = int(self.end_x // 6)
+        self.border_x = int(0.8 * screen_shape[0])
+        self.even_spacing = int(self.border_x // 6)
         self.x_margin = 0
         self.y = 60
         self.screen_shape = screen_shape
@@ -47,7 +47,7 @@ class TopPanel(BasePanel):
         self._draw_text(surface, f"PB: {pb}", self.x_margin + (self.even_spacing * 3), self.y)
 
     def weather_display(self, surface):
-        self.weather_toggle.toggle_draw(surface, self.font)
+        self.weather_toggle.draw(surface, self.font)
 
     def track_name_display(self, track_name, track_list):
         return Dropdown(self.x_margin + (self.even_spacing * 2), self.y, self.screen_shape, track_name, track_list)
@@ -86,6 +86,7 @@ class LeftPanel(BasePanel):
         height = width * 0.3
         x_margin = int((self.border_x - width) // 2)
         self.even_spacing = int(width // 6)
+        
         self.ghost_line = None
         self.ghost_vels = None
         self.ghost_times = None
@@ -102,12 +103,12 @@ class LeftPanel(BasePanel):
 
     def draw(self, surface):
         self.reset_btn.draw(surface, self.font)
-        self.pause_toggle.toggle_draw(surface, self.font)
+        self.pause_toggle.draw(surface, self.font)
 
         self.save_ghost_btn.draw(surface, self.font)
-        self.show_ghost_toggle.toggle_draw(surface, self.font)
+        self.show_ghost_toggle.draw(surface, self.font)
 
-        self.follow_car.toggle_draw(surface, self.font)
+        self.follow_car.draw(surface, self.font)
 
 
     def handle_event(self, event):
@@ -204,8 +205,8 @@ class RightPanel(BasePanel):
 
     def handle_event(self, event):
         self.tyre_toggle.change_state(event)
-        self.fuel_slider.listen(event)
-        self.lap_no_slider.listen(event)
+        self.fuel_slider.handle_event(event)
+        self.lap_no_slider.handle_event(event)
         if self.window_input.handle_event(event):
             self.window_size = int(self.window_input.get_text())
         self.recalculate_btn.handle_event(event)
@@ -215,7 +216,7 @@ class RightPanel(BasePanel):
         self._draw_text(surface, "Brake", *self.brake_pos)
         self.throttle_slider.draw(surface, self.font)
         self.brake_slider.draw(surface, self.font)
-        self.tyre_toggle.toggle_draw(surface, self.font)
+        self.tyre_toggle.draw(surface, self.font)
         self.fuel_slider.draw(surface, self.font)
         self.lap_no_slider.draw(surface, self.font)
         self.speed_graph.draw(surface, self.small_font, sim_time, self.window_size)

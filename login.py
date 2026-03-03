@@ -33,13 +33,18 @@ def main():
                 input.handle_event(event)
             if event.type == pg.KEYDOWN:
                 input.handle_event(event)
+            
+            #check for quits
             if event.type == QUIT:
                 return
             elif event.type == KEYDOWN and event.key == K_ESCAPE:
                 return
+            
+        #draw background and logo
         screen.blit(background, (0, 0))
         screen.blit(logo, (width/2 - logo.get_width()/2, height/2 - logo.get_height()/2))
         input.draw(screen)
+        #update
         pg.display.flip()
 
 
