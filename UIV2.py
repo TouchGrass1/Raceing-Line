@@ -330,17 +330,18 @@ def open_file_browser():
     return file_path, props_path
 
 def add_real_properties(track_name, track_properties_path):
+    #default values in case of missing properties in the file
     new_props = {
         'real_track_length': 1000, 
         'real_track_width': 12
     }
     with open(track_properties_path, 'r') as f:
         for line in f:
-            if ':' in line:
+            if ':' in line: #since file stores track properties as a dictionary
                 key, value = line.split(':')   
                 new_props[key.strip()] = float(value.strip()) # remove whitespace and convert to float
 
-        real_properties[track_name] = new_props
+        real_properties[track_name] = new_props #update properites
         print(f"Properties updated for {track_name}: {new_props}")
 
 def run_GA(variables, clip_rect):
@@ -348,7 +349,7 @@ def run_GA(variables, clip_rect):
             
     racing_line, best_time, vels, mesh = ga(variables)
     
-    all_x = mesh[:, :, 0]
+    all_x = mesh[:, :, 0] #flatten x coords of mesh
     all_y = mesh[:, :, 1]
     min_x, max_x = np.min(all_x), np.max(all_x)
     min_y, max_y = np.min(all_y), np.max(all_y)
@@ -356,7 +357,7 @@ def run_GA(variables, clip_rect):
     #store the track bounds as pygame Rect
     track_rect = pg.Rect(min_x, min_y, max_x - min_x, max_y - min_y)
     
-    scale, offset = calculate_auto_scale(mesh, clip_rect)
+    scale, offset = calculate_auto_scale(clip_rect, track_rect)
     pb_str = f"{int(best_time[-1]//60)}: {best_time[-1]%60:.3f}"
     start_time = time.time()
     acceleration = caculateAccelerations(vels, best_time)
@@ -374,7 +375,7 @@ def zoom(track_rect, clip_rect, scale, in_bool):
 
 def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset, mini_map_data=None):
 
-    #Draw boundaries
+    #draw boundaries
     left_pts = transform_pts(mesh[:, 0, :], scale, offset)
     right_pts = transform_pts(mesh[:, -1, :], scale, offset)
     
@@ -406,41 +407,30 @@ def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset, m
         pg.draw.rect(screen, colour_palette['BG_GREY'].value, mini_map_data['rect'])
         pg.draw.rect(screen, colour_palette['WHITE'].value, m_rect, 1) #border
 
-        #Draw boundaries
+        #draw boundaries
         pg.draw.lines(screen, colour_palette['RED'].value, True, m_left, 1)
         pg.draw.lines(screen, colour_palette['GREEN'].value, True, m_right, 1)
         
-        # Draw Car Dot
+        #draw Car Dot
         cx = int(mini_map_data['car_pos'][0] * m_scale + m_off[0])
         cy = int(mini_map_data['car_pos'][1] * m_scale + m_off[1])
         pg.draw.circle(screen, colour_palette['ORANGE'].value, (cx, cy), 4)
 
-def calculate_auto_scale(mesh, clip_rect, padding=40):
-    # Extract all X and Y coordinates from the mesh
-    all_x = mesh[:, :, 0].flatten()
-    all_y = mesh[:, :, 1].flatten()
-    
-    # Find the bounds of the track
-    min_x, max_x = np.min(all_x), np.max(all_x)
-    min_y, max_y = np.min(all_y), np.max(all_y)
-    
-    track_w = max_x - min_x
-    track_h = max_y - min_y
-    
-    # Available space in the UI (from your clip_rect)
+def calculate_auto_scale(clip_rect, track_rect, padding=40):     
+    #central panel dimensions minus padding
     available_w = clip_rect.width - (padding * 2)
     available_h = clip_rect.height - (padding * 2)
     
-    # Determine the limiting scale factor
-    scale = min(available_w / track_w, available_h / track_h)
+    #calculate the scale to fit in center panel
+    scale = min(available_w / track_rect.width, available_h / track_rect.height)
     
-    # Calculate offset to center the track in the clip_rect
-    offset_x = clip_rect.x + padding - (min_x * scale) + (available_w - track_w * scale) / 2
-    offset_y = clip_rect.y + padding - (min_y * scale) + (available_h - track_h * scale) / 2
+    #set track to the center of the panel
+    offset_x = clip_rect.centerx - (track_rect.centerx * scale)
+    offset_y = clip_rect.centery - (track_rect.centery * scale)
     
     return scale, (offset_x, offset_y)
 
-def get_car_position(sim_time, racing_line, time_array, scale, offset):
+def get_car_position(sim_time, racing_line, time_array):
     racing_line = np.vstack([racing_line, racing_line[0]])
     car_x = np.interp(sim_time, time_array, racing_line[:, 0]) #LERP the car pos
     car_y = np.interp(sim_time, time_array, racing_line[:, 1])
@@ -474,12 +464,13 @@ def follow_car(sim_time, racing_line, time_array, scale, center):
 def draw_car(screen, pos, angle):
     car_length = 20
     car_width = 18
-
+    #Triangle --> three points
     pts = [
         (car_length // 2, 0),               # Front tip
         (-car_length // 2, -car_width // 2), # Back left
         (-car_length // 2, car_width // 2)   # Back right
     ]
+    #use rotation matrix to rotate points by car angle
     rotated_pts = []
     for x, y in pts:
         rx = x * np.cos(angle) - y * np.sin(angle)
@@ -495,11 +486,10 @@ def caculateAccelerations(vel, t):
     a_arr = np.zeros(len(vel))
     for i in range(1, len(vel)):
         dt = t[i] - t[i-1]
-        if dt == 0:
+        if dt == 0: #stop division by zero error
             a_arr[i] = 0
-        else:
-            
-            a_arr[i] = (vel[i] - vel[i-1]) / dt
+        else:            
+            a_arr[i] = (vel[i] - vel[i-1]) / dt #change in vel / change in time
     return a_arr
 
 def get_currentThrottle(sim_time, time_array, acceleration_array):
@@ -553,7 +543,6 @@ def main():
 
 
     # Track setup
-    #track_list = ["Monaco", "Silverstone", "Spa", "Interlagos", "Suzuka", "Yas Marina", "Import"]
     variables = default_variables.copy()
     track_dropdown = top_panel.track_name_display(variables['track'], variable_options['track'])
 
@@ -587,7 +576,7 @@ def main():
                 if left_panel.reset_btn.rect.collidepoint(event.pos):
                     start_time, variables = reset_sim()
                     pan = (0, 0)
-                    scale, offset = calculate_auto_scale(mesh, clip_rect)
+                    scale, offset = calculate_auto_scale(clip_rect, track_rect)
                     left_panel.reset()
                     right_panel.speed_graph.reset_telementry()
 
@@ -631,18 +620,18 @@ def main():
         if variables['track'] != track_dropdown.get_track():
             new_selection = track_dropdown.get_track()
             
-            if new_selection == 'import':
+            if new_selection == 'import': #if import is selected
                 path, props_path = open_file_browser()
-                if path:
-                    track_filename = Path(path).stem
-                    add_real_properties(track_filename, props_path)
-                    track_dropdown.update_options(track_filename)
+                if path: #if a file was selected
+                    track_filename = Path(path).stem #get filename
+                    add_real_properties(track_filename, props_path) #add real propeties to dict
+                    track_dropdown.update_options(track_filename) #update dropdown options to include the new track and set it to the new track
 
-                    variables['track'] = track_filename
-                    variables['custom_path'] = path
+                    variables['track'] = track_filename #set track to the new track
+                    variables['custom_path'] = path #store custom track path for use in GA
                     changed_track = True
                 else:
-                    track_dropdown.set_track(variables['track'])
+                    track_dropdown.set_track(variables['track']) #reset dropdwown to previous track if import cancelled so doesnt call open file browser again
                     print("Import cancelled")
                     changed_track = False
             else:
@@ -703,7 +692,7 @@ def main():
                 car_screen_pos = clip_rect.center
                 
                 mini_rect = pg.Rect(clip_rect.x + 10, clip_rect.y + 10, 200, 200)
-                m_scale, m_offset = calculate_auto_scale(mesh, mini_rect, padding=5)
+                m_scale, m_offset = calculate_auto_scale(mini_rect, track_rect, padding=5)
                 mini_data = {
                     'scale': m_scale,
                     'offset': m_offset,
