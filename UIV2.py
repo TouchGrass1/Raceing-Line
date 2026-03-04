@@ -411,7 +411,7 @@ def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset, m
         pg.draw.lines(screen, colour_palette['RED'].value, True, m_left, 1)
         pg.draw.lines(screen, colour_palette['GREEN'].value, True, m_right, 1)
         
-        #draw Car Dot
+        #draw car dot
         cx = int(mini_map_data['car_pos'][0] * m_scale + m_off[0])
         cy = int(mini_map_data['car_pos'][1] * m_scale + m_off[1])
         pg.draw.circle(screen, colour_palette['ORANGE'].value, (cx, cy), 4)
@@ -683,15 +683,15 @@ def main():
         screen.set_clip(clip_rect)
         if mesh is not None:
             #raw car coords
-            car_world_pos, car_angle = get_car_position(sim_time, racing_line, best_time, 1.0, (0, 0))
+            car_world_pos, car_angle = get_car_position(sim_time, racing_line, best_time)
             
             if follow_car_bool:
                 #car in center and track moves around it
                 render_offset = [clip_rect.centerx - (car_world_pos[0] * scale), 
-                                 clip_rect.centery - (car_world_pos[1] * scale)]
+                                 clip_rect.centery - (car_world_pos[1] * scale)] #offset to render track with car in center of screen
                 car_screen_pos = clip_rect.center
                 
-                mini_rect = pg.Rect(clip_rect.x + 10, clip_rect.y + 10, 200, 200)
+                mini_rect = pg.Rect(clip_rect.x + 10, clip_rect.y + 10, 200, 200) #mini map rect in top left of track area
                 m_scale, m_offset = calculate_auto_scale(mini_rect, track_rect, padding=5)
                 mini_data = {
                     'scale': m_scale,
