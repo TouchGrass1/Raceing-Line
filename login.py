@@ -26,13 +26,14 @@ def main():
 
     logo = pg.image.load("Assets/F1logo.png").convert_alpha()
     input = EntryBox(700, 800, 500, 50, is_password=True)
+    is_correct = False
     # Event loop
     while True:
         for event in pg.event.get():
             if event.type == pg.MOUSEBUTTONDOWN:
                 input.handle_event(event)
             if event.type == pg.KEYDOWN:
-                input.handle_event(event)
+                is_correct = input.handle_event(event)
             
             #check for quits
             if event.type == QUIT:
@@ -44,8 +45,11 @@ def main():
         screen.blit(background, (0, 0))
         screen.blit(logo, (width/2 - logo.get_width()/2, height/2 - logo.get_height()/2))
         input.draw(screen)
+
+        if is_correct:
+            return True
         #update
         pg.display.flip()
 
 
-if __name__ == '__main__': main()
+#if __name__ == '__main__': main()

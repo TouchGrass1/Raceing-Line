@@ -173,9 +173,12 @@ class LeftPanel(BasePanel):
             max_v = np.max(self.ghost_vels)
             min_v = np.min(self.ghost_vels)
 
-            for i in range(len(self.ghost_line) - 1):
-                    p1 = self.ghost_line[i]
-                    p2 = self.ghost_line[i+1]
+            racing_line = np.vstack([self.ghost_line, self.ghost_line[0]])
+
+
+            for i in range(len(racing_line) - 1):
+                    p1 = racing_line[i]
+                    p2 = racing_line[i+1]
         
                     norm_v = (self.ghost_vels[i] - min_v) / (max_v - min_v) #normalise
                     color = (int(255 *  norm_v), 0, int(255 * (1-norm_v)), int(0.25*255)) #LERP BETWEEN RED and Blue, and 25% opacity
@@ -610,7 +613,7 @@ def main():
                     in_center_panel = True
                 else: in_center_panel = False
 
-            if event.type == pg.MOUSEWHEEL and in_center_panel: #zoom
+            if event.type == pg.MOUSEWHEEL and in_center_panel and mesh is not None: #zoom
                 current_total_offset = (offset[0] + pan[0], offset[1] + pan[1]) #total offset including pan
                 mouse_pos = pg.mouse.get_pos()
                 

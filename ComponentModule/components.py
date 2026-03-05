@@ -299,6 +299,7 @@ class EntryBox:
                 self.txt_surface = self.font.render(self.placeholder, True, self.color)
             else:
                 self.txt_surface = self.font.render(self.text, True, self.color)
+        return False
 
     def get_text(self):
         return self.text
