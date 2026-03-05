@@ -253,7 +253,7 @@ def run():
     print(f"time taken: {int(t[-1]//60)}: {t[-1]%60:.3f}")
     
 
-    plot_velocity_coloured_line_v2(racing_line, vel, mesh)
+    #plot_velocity_coloured_line_v2(racing_line, vel, mesh)
     #plotVelocity(vel, a)
 
 

@@ -218,8 +218,8 @@ def main(variables):
     except IndexError: 
         print("Population error")
     
-    plot_just_best_line(best_spline, mesh)
-    plot_velocity_colored_line(best_spline, best_vels)
+    #plot_just_best_line(best_spline, mesh)
+    #plot_velocity_colored_line(best_spline, best_vels)
 
     return best_spline, best_time_final, best_vels, mesh
 

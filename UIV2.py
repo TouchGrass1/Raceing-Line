@@ -77,6 +77,9 @@ class TopPanel(BasePanel):
     def pb_display(self, surface, pb):
         self._draw_text(surface, f"PB: {pb}", self.x_margin + (self.even_spacing * 3), self.y)
 
+    def weather_text(self, surface):
+        self._draw_text(surface, "Weather:", self.x_margin + (self.even_spacing * 0.54), self.y)
+
     def weather_display(self, surface):
         self.weather_toggle.draw(surface, self.font)
 
@@ -224,7 +227,7 @@ class RightPanel(BasePanel):
         self.GForce_graph = TelemetryGraph((self.right_panel_start_x + 13*(self.x_margin - self.right_panel_start_x)), int(self.panel_height * 0.5), (panel_width - 20*(self.x_margin - self.right_panel_start_x)), (panel_width - 20*(self.x_margin - self.right_panel_start_x)), "G Force")
 
         #Window control
-        self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.right_panel_start_x)), 50, placeholder='Enter Window Size', is_password=False)
+        self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.right_panel_start_x)), 50, placeholder='Change Graph Resolution', is_password=False)
 
         #recalculate
         self.recalculate_btn = Button((self.right_panel_start_x + (panel_width//3)), int(self.panel_height * 0.1), self.screen_shape, 'Recalculate')
@@ -363,8 +366,11 @@ def run_GA(variables, clip_rect):
     acceleration = caculateAccelerations(vels, best_time)
     return racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration
 
-def zoom(track_rect, clip_rect, scale, in_bool):
-    zoom_step = 2 
+def zoom(track_rect, clip_rect, scale, in_bool, is_wheel, mouse_pos=None):
+    if is_wheel: 
+        zoom_step = 1.4
+    else:
+        zoom_step = 2 
     if not in_bool: zoom_step = 1/zoom_step
     scale = np.clip(scale * zoom_step, 0.5, 75)
   
@@ -509,7 +515,7 @@ def main():
     dt = 1/fps
 
     screen = pg.display.set_mode(flags=pg.FULLSCREEN)
-    screen = pg.display.set_mode((1920,1080))
+    #screen = pg.display.set_mode((1920,1080))
     screen_shape = screen.get_size()
     pg.display.set_caption('Racing Lines')
 
@@ -557,6 +563,7 @@ def main():
     dragger = Drag()
     track_rect = None
     follow_car_bool = False
+    in_center_panel = False
     # Dividers
     dividers = BasePanel(screen_shape, font)
 
@@ -580,11 +587,10 @@ def main():
                     left_panel.reset()
                     right_panel.speed_graph.reset_telementry()
 
-
                 if center_panel.zoom_in.rect.collidepoint(event.pos):
-                    scale, offset = zoom(track_rect, screen.get_clip(), scale, True)
+                    scale, offset = zoom(track_rect, screen.get_clip(), scale, True, False)
                 if center_panel.zoom_out.rect.collidepoint(event.pos):
-                    scale, offset = zoom(track_rect, screen.get_clip(), scale, False)
+                    scale, offset = zoom(track_rect, screen.get_clip(), scale, False, False)
                 if left_panel.pause_toggle.rect.collidepoint(event.pos):
                     paused = not paused
 
@@ -604,6 +610,17 @@ def main():
                         racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
                         top_panel.show_popup = False
 
+
+            if event.type == pg.MOUSEMOTION:
+                if clip_rect.collidepoint(event.pos): #over center panel
+                    in_center_panel = True
+                else: in_center_panel = False
+
+            if event.type == pg.MOUSEWHEEL and in_center_panel:
+                if event.y > 0: #scroll up --> zoom in
+                    scale, offset = zoom(track_rect, screen.get_clip(), scale, True, True, pg.mouse.get_pos())
+                else:
+                    scale, offset = zoom(track_rect, screen.get_clip(), scale, False, True, pg.mouse.get_pos())
                 
 
             left_panel.handle_event(event)
@@ -677,6 +694,7 @@ def main():
         top_panel.time_display(screen, current_time)
         top_panel.lap_display(screen, current_time / best_time[-1])
         top_panel.pb_display(screen, pb_str)
+        top_panel.weather_text(screen)
         top_panel.weather_display(screen)
         track_dropdown.draw(screen, font)
 

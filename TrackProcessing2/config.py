@@ -6,13 +6,13 @@ config = {
     "elite_rate": 0.1, #percentage of top individuals to carry over to next generation
     "mut_rate": 0.7, #mutation rate
     "smoothing_factor": 0.1, #the higher the number the more smoothing
-    "nudging_factor": 4, #the higher the number the more aggressive the nudge
+    "nudging_factor": 6, #the higher the number the more aggressive the nudge
     "window_factor": 0.1, #the size of the window during mutations
     "smooth_to_nudge_factor": 0.8, #ratio of smooth to nudge chance
 
-    "total_generations": 50, #50 
+    "total_generations": 1, #50 
     "total_repeats": 1, #20 number of times to repeat the whole GA 
-    "min_generations": 11, #minimum number of generations to run before checking for convergence
+    "min_generations": 20, #minimum number of generations to run before checking for convergence
     "num_points_across": 60, #number of points to sample across the width of the track
     "mesh_res": 1, #the bigger the number the lower the resolution
     "bias_factor": 0.1 # how much it pulls towards the center
@@ -31,15 +31,15 @@ real_properties = {
         'real_track_length': 5419,
         'real_track_width': 12
         },
-    '90degturn': {
-        'real_track_length': 1000,
-        'real_track_width': 12
-        }
+    # '90degturn': {
+    #     'real_track_length': 1000,
+    #     'real_track_width': 12
+    #     }
     }
     
 
 default_variables = {
-    'track': 'silverstone',
+    'track': 'Select Track',
     'mass': 988,
     'weather': 'dry',
     'tyre': 'SOFT',
@@ -50,7 +50,7 @@ default_variables = {
 }
 
 variable_options = {
-    'track': ['silverstone', 'monza', 'qatar', '90degturn', 'import'],
+    'track': ['silverstone', 'monza', 'qatar', 'import'],
     'mass': [878, 988],
     'weather': ['dry', 'wet'],
     'tyre': ['SOFT', 'MEDIUM', 'HARD'],
