@@ -10,9 +10,9 @@ config = {
     "window_factor": 0.1, #the size of the window during mutations
     "smooth_to_nudge_factor": 0.8, #ratio of smooth to nudge chance
 
-    "total_generations": 1, #50 
+    "total_generations": 50, #50 
     "total_repeats": 1, #20 number of times to repeat the whole GA 
-    "min_generations": 20, #minimum number of generations to run before checking for convergence
+    "min_generations": 25, #minimum number of generations to run before checking for convergence
     "num_points_across": 60, #number of points to sample across the width of the track
     "mesh_res": 1, #the bigger the number the lower the resolution
     "bias_factor": 0.1 # how much it pulls towards the center
@@ -39,7 +39,7 @@ real_properties = {
     
 
 default_variables = {
-    'track': 'Select Track',
+    'track': None,
     'mass': 988,
     'weather': 'dry',
     'tyre': 'SOFT',

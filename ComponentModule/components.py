@@ -107,7 +107,6 @@ class Dropdown(Button):
                 for i, rect in enumerate(self.option_rects):
                     if rect.collidepoint(event.pos):
                         self.selected_option = self.options[i]
-                        self.label = self.selected_option
                         self.expanded = False
                         print('2', self.selected_option)
         if event.type == pg.MOUSEBUTTONUP and not self.rect.collidepoint(event.pos):
@@ -129,6 +128,7 @@ class Dropdown(Button):
 
     def set_track(self, track_name):
         self.selected_option = track_name
+        self.label = track_name
 
     def update_options(self, new_option):
         if new_option not in self.options:

@@ -83,8 +83,8 @@ class TopPanel(BasePanel):
     def weather_display(self, surface):
         self.weather_toggle.draw(surface, self.font)
 
-    def track_name_display(self, track_name, track_list):
-        return Dropdown(self.x_margin + (self.even_spacing * 2), self.y, self.screen_shape, track_name, track_list)
+    def track_name_display(self, track_list):
+        return Dropdown(self.x_margin + (self.even_spacing * 2), self.y, self.screen_shape, "Select Track", track_list)
     
     def handle_event(self, event):
         self.weather_toggle.change_state(event)
@@ -271,16 +271,6 @@ class CenterPanel(BasePanel):
         self.y_padding = self.height // 10
         self.even_spacing = int(self.width // 5)
 
-        self.zoom_in = Button( self.start_x + self.even_spacing*4, (screen_shape[1] - self.y_padding), screen_shape, "+", 'circle')
-        self.zoom_out= Button( (self.start_x + self.even_spacing*4 + 2*(30/1080 * screen_shape[1])), (screen_shape[1] - self.y_padding), screen_shape, "-", 'circle')
-    
-    def draw_zoom_btns(self, surface, font):
-        self.zoom_in.draw(surface, font)
-        self.zoom_out.draw(surface, font)
-    
-    def handle_event(self, event):
-        self.zoom_in.handle_event(event)
-        self.zoom_out.handle_event(event)
 
 class Drag:
     def __init__(self):
@@ -333,19 +323,21 @@ def open_file_browser():
     return file_path, props_path
 
 def add_real_properties(track_name, track_properties_path):
-    #default values in case of missing properties in the file
-    new_props = {
-        'real_track_length': 1000, 
-        'real_track_width': 12
-    }
-    with open(track_properties_path, 'r') as f:
-        for line in f:
-            if ':' in line: #since file stores track properties as a dictionary
-                key, value = line.split(':')   
-                new_props[key.strip()] = float(value.strip()) # remove whitespace and convert to float
+    if track_properties_path == '':
+        #default values in case of missing file
+        new_props = {
+            'real_track_length': 1000, 
+            'real_track_width': 12
+        }
+    else:
+        with open(track_properties_path, 'r') as f:
+            for line in f:
+                if ':' in line: #since file stores track properties as a dictionary
+                    key, value = line.split(':')   
+                    new_props[key.strip()] = float(value.strip()) # remove whitespace and convert to float
 
-        real_properties[track_name] = new_props #update properites
-        print(f"Properties updated for {track_name}: {new_props}")
+    real_properties[track_name] = new_props #update properites
+    print(f"Properties updated for {track_name}: {new_props}")
 
 def run_GA(variables, clip_rect):
     print(f"Running GA for {variables['track']}...")
@@ -366,18 +358,25 @@ def run_GA(variables, clip_rect):
     acceleration = caculateAccelerations(vels, best_time)
     return racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration
 
-def zoom(track_rect, clip_rect, scale, in_bool, is_wheel, mouse_pos=None):
-    if is_wheel: 
-        zoom_step = 1.4
-    else:
-        zoom_step = 2 
-    if not in_bool: zoom_step = 1/zoom_step
-    scale = np.clip(scale * zoom_step, 0.5, 75)
-  
-    offset_x = clip_rect.centerx - (track_rect.centerx * scale)
-    offset_y = clip_rect.centery - (track_rect.centery * scale)
+def zoom(current_scale, current_offset, in_bool, mouse_pos):
+    zoom_step = 1.4
+
+    if not in_bool: 
+        zoom_step = 1 / zoom_step
     
-    return scale, (offset_x, offset_y)
+    new_scale = np.clip(current_scale * zoom_step, 1, 75)
+
+    actual_ratio = new_scale / current_scale #how much the scale is changing by, used to offset the zoom
+
+    mx, my = mouse_pos
+    ox, oy = current_offset
+
+    #adjust offsets so the point under the mouse stays under the mouse
+    new_offset_x = mx - (mx - ox) * actual_ratio
+    new_offset_y = my - (my - oy) * actual_ratio
+
+    
+    return new_scale, (new_offset_x, new_offset_y)
 
 def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset, mini_map_data=None):
 
@@ -550,7 +549,7 @@ def main():
 
     # Track setup
     variables = default_variables.copy()
-    track_dropdown = top_panel.track_name_display(variables['track'], variable_options['track'])
+    track_dropdown = top_panel.track_name_display(variable_options['track'])
 
     # Clipping rectangle for track image
     x = int(0.1 * screen_shape[0])
@@ -587,13 +586,8 @@ def main():
                     left_panel.reset()
                     right_panel.speed_graph.reset_telementry()
 
-                if center_panel.zoom_in.rect.collidepoint(event.pos):
-                    scale, offset = zoom(track_rect, screen.get_clip(), scale, True, False)
-                if center_panel.zoom_out.rect.collidepoint(event.pos):
-                    scale, offset = zoom(track_rect, screen.get_clip(), scale, False, False)
                 if left_panel.pause_toggle.rect.collidepoint(event.pos):
                     paused = not paused
-
                 
                 if left_panel.follow_car.rect.collidepoint(event.pos):
                     follow_car_bool = not follow_car_bool
@@ -616,30 +610,37 @@ def main():
                     in_center_panel = True
                 else: in_center_panel = False
 
-            if event.type == pg.MOUSEWHEEL and in_center_panel:
-                if event.y > 0: #scroll up --> zoom in
-                    scale, offset = zoom(track_rect, screen.get_clip(), scale, True, True, pg.mouse.get_pos())
-                else:
-                    scale, offset = zoom(track_rect, screen.get_clip(), scale, False, True, pg.mouse.get_pos())
+            if event.type == pg.MOUSEWHEEL and in_center_panel: #zoom
+                current_total_offset = (offset[0] + pan[0], offset[1] + pan[1]) #total offset including pan
+                mouse_pos = pg.mouse.get_pos()
+                
+                if event.y > 0: # zoom in
+                    new_scale, new_total_offset = zoom(scale, current_total_offset, True, mouse_pos)
+                else: # zoom out
+                    new_scale, new_total_offset = zoom(scale, current_total_offset, False, mouse_pos)
+                
+                scale = new_scale
+                offset = new_total_offset
+
+                pan = (0, 0) #reset pan becasue it is now included into the offset
                 
 
             left_panel.handle_event(event)
             track_dropdown.handle_event(event)
             right_panel.handle_event(event)
             top_panel.handle_event(event)
-            center_panel.handle_event(event)
             
 
         if variables['tyre'] != right_panel.tyre_toggle.get_state():
             variables['tyre'] = right_panel.tyre_toggle.get_state()
 
         # track dropdown
-        if variables['track'] != track_dropdown.get_track():
+        if variables['track'] != track_dropdown.get_track() and track_dropdown.get_track() != "Select Track":
             new_selection = track_dropdown.get_track()
-            
             if new_selection == 'import': #if import is selected
                 path, props_path = open_file_browser()
-                if path: #if a file was selected
+                print("path s", path)
+                if path is not None: #if a file was selected
                     track_filename = Path(path).stem #get filename
                     add_real_properties(track_filename, props_path) #add real propeties to dict
                     track_dropdown.update_options(track_filename) #update dropdown options to include the new track and set it to the new track
@@ -647,12 +648,16 @@ def main():
                     variables['track'] = track_filename #set track to the new track
                     variables['custom_path'] = path #store custom track path for use in GA
                     changed_track = True
-                else:
-                    track_dropdown.set_track(variables['track']) #reset dropdwown to previous track if import cancelled so doesnt call open file browser again
+                else: 
+                    if variables['track'] is None: #no previous track is selected
+                        track_dropdown.set_track("Select Track")
+                    else:
+                        track_dropdown.set_track(variables['track']) #reset dropdwown to previous track if import cancelled so doesnt call open file browser again
                     print("Import cancelled")
                     changed_track = False
             else:
                 variables['track'] = new_selection
+                track_dropdown.set_track(new_selection)
                 variables['custom_path'] = None
                 changed_track = True
 
@@ -665,9 +670,9 @@ def main():
                 racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
                 right_panel.speed_graph.reset_telementry()
             
-            right_panel.speed_graph.precompute_telemetry(best_time, vels)
-            right_panel.GForce_graph.precompute_telemetry(best_time, acceleration)
-            top_panel.show_popup = False
+                right_panel.speed_graph.precompute_telemetry(best_time, vels)
+                right_panel.GForce_graph.precompute_telemetry(best_time, acceleration)
+                top_panel.show_popup = False
             
             print("----")
             print(f"Track changed to: {variables['track']}")
@@ -729,12 +734,10 @@ def main():
             draw_car(screen, car_screen_pos, car_angle)
             throttle = get_currentThrottle(sim_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))
-            center_panel.draw_zoom_btns(screen, font)
             left_panel.save_ghost_func(racing_line, vels, best_time)
             left_panel.show_ghost_func(screen, scale, render_offset)
         
         screen.set_clip(None)
-        
         
         clock.tick(fps)
         pg.display.flip()
