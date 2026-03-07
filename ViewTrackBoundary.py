@@ -3,37 +3,33 @@ import pygame as pg
 from pygame.locals import QUIT, KEYDOWN, K_ESCAPE
 from TrackProcessing.OrderManager import OrderManager
 
-###NOTE each class will be a seperate file but the Trackproccessing import doesnt work if it is in a sibling module do need to fix but not important
 class ViewTrackBoundary:
-    def __init__(self, track_name: str):
+    def __init__(self, track_name):
         self.manager = OrderManager(track_name)
-        self.manager.run()
-        self.track_order = self.manager.get_order()
+        self.manager.run() #load track data
+        self.track_order = self.manager.get_order() #get inner and outer boundaries
         self.track_name = track_name
 
-        # Use track dimensions even though we won't display the texture
         dims = self.manager.get_dimensions()
         if dims is None:
             raise ValueError("Failed to get track dimensions.")
         self.width, self.height = dims
 
-    def view_track_boundary(self) -> pg.Surface:
-
+    def view_track_boundary(self):
         if self.track_order is None:
             raise ValueError("Track order not loaded correctly.")
 
         print("Order lengths:", [len(p) for p in self.track_order])
         print("First 5 points:", self.track_order[0][:5])
 
-
-
         boundary_surface = pg.Surface((self.width, self.height), pg.SRCALPHA)
 
-        # Draw boundaries
+        #draw boundaries
         red, green, blue = 0,0,0
         for path in self.track_order:
             for i in range(1, len(path)):
                 #print(f"Drawing line from {path[i - 1]} to {path[i]}")
+                #add colour gradient
                 red = i % 254
                 green = (i * 2) % 255
                 blue = 255 - (i % 255)
@@ -43,8 +39,9 @@ class ViewTrackBoundary:
         return boundary_surface
 
 import numpy as np
+
 class Subdivide:
-    def __init__(self, track_name: str):
+    def __init__(self, track_name):
         self.manager = OrderManager(track_name)
         self.manager.run()
         self.track_order = self.manager.get_order()
@@ -58,16 +55,14 @@ class Subdivide:
         path = np.array(path, dtype=float)
         x, y = path[:, 0], path[:, 1]
 
-        # Compute distances between consecutive points
         distances = np.sqrt(np.diff(x)**2 + np.diff(y)**2)
         cumulative = np.concatenate(([0], np.cumsum(distances)))
-
         total_length = cumulative[-1]
-        total_length = np.sum(np.sqrt(np.sum(np.diff(self.inner, axis=0)**2, axis=1))) #finds the difference between each point and sums them to get total length
+        
         self.num_points = int(total_length / self.spacing)
         target_distances = np.linspace(0, total_length, self.num_points)
 
-        # Interpolate x and y at new positions
+        #lerp x and y at new positions
         new_x = np.interp(target_distances, cumulative, x)
         new_y = np.interp(target_distances, cumulative, y)
 
@@ -75,12 +70,13 @@ class Subdivide:
     
     def constructTriangles(self):
         for i in range(self.num_points -1):
+            #form quadrilateral
             l1 = (self.inner_sample[i][0], self.inner_sample[i][1])
             l2 = (self.inner_sample[i + 1][0], self.inner_sample[i + 1][1])
             r1 = (self.outer_sample[i][0], self.outer_sample[i][1])
             r2 = (self.outer_sample[i + 1][0], self.outer_sample[i + 1][1])
 
-            # Two triangles per quad
+            #two triangles per quadrilateral
             self.triangles.append([l1, r1, r2])
             self.triangles.append([l1, r2, l2])
 

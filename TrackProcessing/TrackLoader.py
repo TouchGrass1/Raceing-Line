@@ -15,24 +15,15 @@ ASSETS_DIR = _PROJECT_ROOT / "assets" / "tracks"
 ORDERS_DIR = _PROJECT_ROOT / "orders"
 ORDERS_DIR.mkdir(exist_ok=True)
 
-
-
-
 class TrackLoader:
-    @staticmethod
     def import_track(track_name = "qatar"):
-        """Load a track image from `assets/tracks/{track_name}.png`.
-
-
-        Returns (surface, height, width) or None if not found.
-        """
         filepath = ASSETS_DIR / f"{track_name}.png"
         try:
-            surface = pg.image.load(str(filepath)).convert_alpha()
+            surface = pg.image.load(str(filepath)).convert_alpha() #alpha is for transparency
         except FileNotFoundError:
             print(f"Track file not found: {filepath}")
             return None
-        return surface, surface.get_height(), surface.get_width()
+        return surface, surface.get_height(), surface.get_width() #return surface and dimensions of track
 
 
     @staticmethod

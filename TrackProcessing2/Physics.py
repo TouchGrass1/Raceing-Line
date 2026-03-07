@@ -61,8 +61,11 @@ class PhysicsFormulas:
         return PhysicsConsts['POWER'].value/(speed*mass)
     def maxThrustEquation(density): #finds when thrust == drag
         vel = 0
-        run = True 
+        run = True
+        i = 0
+        cap = 5000
         while run:
+            i+= 1
             vel +=1
             thrust = updateVar.updateThrust(vel)
             drag = updateVar.updateDrag(vel, density)
@@ -72,8 +75,17 @@ class PhysicsFormulas:
                 thrust = updateVar.updateThrust(vel)
             if vel > PhysicsConsts['VELOCITY_MAX'].value:
                 run = False
+            
+            if i > cap:
+                return thrust, vel
         return thrust, vel 
 
+    def maxThrustAlgebraic(density):
+        P = PhysicsConsts['POWER'].value
+        A = 0.9 * 1.5156 * density * 0.5 #drag coefficient * frontal area * density * 0.5
+        v_max = (P/A)**(1/3)
+        v_max = np.clip(v_max, 0, PhysicsConsts['VELOCITY_MAX'].value)
+        return P/v_max, v_max
 
 class updateVar:
     def updateMass(noLap, maxNoLap): #end of every lap

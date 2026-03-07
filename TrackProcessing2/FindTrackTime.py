@@ -14,7 +14,7 @@ from TrackProcessing2.Physics import *
 def findMaxVelocity(radius, mass, density, mu):
    
     downforce = 2000 #N
-    maxVerticalThrust, maxVerticalVel = PhysicsFormulas.maxThrustEquation(density)
+    maxVerticalThrust, maxVerticalVel = PhysicsFormulas.maxThrustAlgebraic(density)
     maxLateralForceEquation = PhysicsFormulas.maxLateralForceEquation(mu, mass, downforce)
     maxLateralForceEquation = PhysicsFormulas.maxLateralAccelerationEquation(maxLateralForceEquation, mass)
     maxVel = np.sqrt((maxLateralForceEquation*radius) / mass)
@@ -23,7 +23,6 @@ def findMaxVelocity(radius, mass, density, mu):
 
 def findVelocities(maxVelArr, dists, mass, density, noLap, tyreType):
     n = len(dists)
-
     vel = np.zeros(n)
 
     # Forward pass acceleration limit
