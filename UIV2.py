@@ -230,7 +230,7 @@ class RightPanel(BasePanel):
         self.GForce_graph = TelemetryGraph((self.right_panel_start_x + 13*(self.x_margin - self.right_panel_start_x)), int(self.panel_height * 0.5), (panel_width - 20*(self.x_margin - self.right_panel_start_x)), (panel_width - 20*(self.x_margin - self.right_panel_start_x)), "G Force")
 
         #Window control
-        self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.right_panel_start_x)), 50, placeholder='Change Graph Resolution', is_password=False)
+        self.window_input = EntryBox(self.x_margin, int(self.panel_height * 0.65), (panel_width - 2*(self.x_margin - self.right_panel_start_x)), (0.0429 * self.panel_height), self.font, placeholder='Change Graph Resolution', is_password=False)
 
         #recalculate
         self.recalculate_btn = Button((self.right_panel_start_x + (panel_width//3)), int(self.panel_height * 0.1), self.screen_shape, 'Recalculate')
@@ -244,8 +244,11 @@ class RightPanel(BasePanel):
         self.tyre_toggle.change_state(event)
         self.fuel_slider.handle_event(event)
         self.lap_no_slider.handle_event(event)
-        if self.window_input.handle_event(event):
-            self.window_size = int(self.window_input.get_text())
+        self.window_input.handle_event(event)
+        if self.window_input.is_correct == True: #if enter is pressed
+            if self.window_input.get_text().isdigit(): #check if input is a number
+                if int(self.window_input.get_text()) > 0 and int(self.window_input.get_text()) < 120: #check if number is in range
+                    self.window_size = int(self.window_input.get_text())
         self.recalculate_btn.handle_event(event)
         
     def draw(self, surface, sim_time):
@@ -326,17 +329,21 @@ def open_file_browser():
     return file_path, props_path
 
 def add_real_properties(track_name, track_properties_path):
+    #default values in case of missing file
+    new_props = {
+        'real_track_length': 1000, 
+        'real_track_width': 12
+        }  
     if track_properties_path == '':
-        #default values in case of missing file
-        new_props = {
-            'real_track_length': 1000, 
-            'real_track_width': 12
-        }
+        pass
     else:
         with open(track_properties_path, 'r') as f:
             for line in f:
                 if ':' in line: #since file stores track properties as a dictionary
                     key, value = line.split(':')   
+                    if float(value.strip()) < 1:
+                        real_properties[track_name] = new_props #don't update if values are invalid
+                        return
                     new_props[key.strip()] = float(value.strip()) # remove whitespace and convert to float
 
     real_properties[track_name] = new_props #update properites
@@ -516,12 +523,12 @@ def main():
     fps = 60
     dt = 1/fps
 
-    screen = pg.display.set_mode(flags=pg.FULLSCREEN)
-    #screen = pg.display.set_mode((1920,1080))
+    #screen = pg.display.set_mode(flags=pg.FULLSCREEN)
+    screen = pg.display.set_mode((1280, 720))
     screen_shape = screen.get_size()
     pg.display.set_caption('Racing Lines')
 
-    #Track data
+    # Track data
     racing_line, best_time, vels, mesh = None, None, None, None
     pb_str = "00:00.000"
     best_time = [1]
