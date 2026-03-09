@@ -2,7 +2,7 @@ import pygame as pg
 from pygame.locals import *
 import numpy as np
 
-colour_pallete = {
+colour_palette = {
     'white': (242, 241, 242),
     'red': (246, 32, 57),
     'black': (17, 17, 17),
@@ -32,11 +32,11 @@ class Button:
         self.label = label #text on button
 
     def draw(self, screen, font):
-        if self.clicking: colour = colour_pallete['blue'] #mouse is down on the button
-        elif self.hover: colour = colour_pallete['red2'] #mouse if over the button
-        else: colour = colour_pallete['red'] #default
+        if self.clicking: colour = colour_palette['blue'] #mouse is down on the button
+        elif self.hover: colour = colour_palette['red2'] #mouse if over the button
+        else: colour = colour_palette['red'] #default
         pg.draw.rect(screen, colour, self.rect, border_radius= 20)
-        label_text = font.render(self.label, True, colour_pallete['white'])
+        label_text = font.render(self.label, True, colour_palette['white'])
         label_rect = label_text.get_rect(center=self.rect.center)
         screen.blit(label_text, label_rect)
         
@@ -80,19 +80,19 @@ class Dropdown(Button):
     def draw(self, screen, font):
         if self.expanded:
             #draw main button
-            pg.draw.rect(screen, colour_pallete['blue'], self.rect, border_top_left_radius= 20, border_top_right_radius= 20)
-            label_text = font.render(self.label, True, colour_pallete['white'])
+            pg.draw.rect(screen, colour_palette['blue'], self.rect, border_top_left_radius= 20, border_top_right_radius= 20)
+            label_text = font.render(self.label, True, colour_palette['white'])
             label_rect = label_text.get_rect(center=self.rect.center)
             screen.blit(label_text, label_rect)
             #draw options
             for i, option in enumerate(self.options):
-                if i == self.hover_options: colour = colour_pallete['red2'] #hover
-                else: colour = colour_pallete['line grey']
+                if i == self.hover_options: colour = colour_palette['red2'] #hover
+                else: colour = colour_palette['line grey']
                 if i == len(self.options) - 1:
                     pg.draw.rect(screen, colour, self.option_rects[i], border_bottom_left_radius= 20, border_bottom_right_radius= 20) #last option has rounded corners
                 else:
                     pg.draw.rect(screen, colour, self.option_rects[i])
-                option_text = font.render(option, True, colour_pallete['white'])
+                option_text = font.render(option, True, colour_palette['white'])
                 option_rect = option_text.get_rect(center=self.option_rects[i].center)
                 screen.blit(option_text, option_rect)
         else: super().draw(screen, font)
@@ -163,13 +163,14 @@ class Toggle(Button):
         return self.states[self.current_state]
     
     def set_state(self, state_num):
+        self.current_state = state_num
         self.states[state_num]
     
 
         
 class Slider:
-    def __init__(self, x, y, w, h, min_val, max_val, initial_val, label, active):
-        self.active = active
+    def __init__(self, x, y, w, h, min_val, max_val, initial_val, label, interactive):
+        self.interactive = interactive
         self.rect = pg.Rect(x, y, w, h)
         
         #values
@@ -187,34 +188,34 @@ class Slider:
 
     def draw(self, screen, font):
         #draw slider track
-        pg.draw.rect(screen, colour_pallete['subtle grey'], self.rect, border_radius=23)
+        pg.draw.rect(screen, colour_palette['subtle grey'], self.rect, border_radius=23)
         
-        if self.active:        
+        if self.interactive:        
             #draw handle
-            pg.draw.circle(screen, colour_pallete['white'], 
+            pg.draw.circle(screen, colour_palette['white'], 
                             (int(self.handle_x), self.rect.centery), 10)
             
             #draw labels
-            label_text = font.render(self.label, True, colour_pallete['white'])
+            label_text = font.render(self.label, True, colour_palette['white'])
             screen.blit(label_text, (self.rect.x - 20, self.rect.y - 30))
             
-            min_text = font.render(f"{self.min:.1f}", True, colour_pallete['white'])
+            min_text = font.render(f"{self.min:.1f}", True, colour_palette['white'])
             screen.blit(min_text, (self.rect.left - 40, self.rect.centery)) #add small offset to avoid everlapping with handle
             
-            max_text = font.render(f"{self.max:.1f}", True, colour_pallete['white'])
+            max_text = font.render(f"{self.max:.1f}", True, colour_palette['white'])
             screen.blit(max_text, (self.rect.right + 10, self.rect.centery ))
             
-            val_text = font.render(f"{self.val:.2f}", True, colour_pallete['white'])
+            val_text = font.render(f"{self.val:.2f}", True, colour_palette['white'])
             screen.blit(val_text, (self.handle_x - 15, self.rect.bottom + 5))
         
         #health bar sliders
         else:
             x = (self.val - self.min)/(self.max - self.min) * self.rect.width #calculate width of filled part based on value
             rect = pg.Rect(self.rect.left, self.rect.top, x, self.rect.height )
-            pg.draw.rect(screen, colour_pallete['red2'], rect, border_radius=23)
+            pg.draw.rect(screen, colour_palette['red2'], rect, border_radius=23)
             
             #draw labels
-            val_text = self.font.render(f"{self.val*100}%", 1, colour_pallete['white']) #display value as %
+            val_text = self.font.render(f"{self.val*100}%", 1, colour_palette['white']) #display value as %
             pos = (self.rect.right - val_text.get_width(), self.rect.bottom + val_text.get_height())
             screen.blit(val_text, pos)
 
@@ -250,15 +251,15 @@ class Text:
         self.text = text
         self.font = pg.font.Font(None, font_size)
     def draw(self, background):
-        text = self.font.render(str(self.text), 1, colour_pallete['white'])
+        text = self.font.render(str(self.text), 1, colour_palette['white'])
         background.blit(text, self.pos)
 
 class EntryBox:
 
     def __init__(self, x, y, w, h, font, pwd='asdf', is_password=False, placeholder='Type asdf to start'):
         self.rect = pg.Rect(x, y, w, h)
-        self.color_inactive = colour_pallete['line grey']
-        self.color_active = colour_pallete['white']
+        self.color_inactive = colour_palette['line grey']
+        self.color_active = colour_palette['white']
         self.color = self.color_inactive
         self.pwd = pwd
         self.is_password = is_password
@@ -409,20 +410,20 @@ class TelemetryGraph:
 
         #bg
         pg.draw.rect(surface, (30, 30, 30), self.rect)
-        pg.draw.rect(surface, colour_pallete['line grey'], self.rect, 1) #border
+        pg.draw.rect(surface, colour_palette['line grey'], self.rect, 1) #border
 
         #draw lines
-        pg.draw.lines(surface, colour_pallete['blue'], False, pts, 2)
-        if self.ghost_bool and self.ghost_vels is not None: pg.draw.lines(surface, colour_pallete['red2'], False, ghost_pts, 1)
+        pg.draw.lines(surface, colour_palette['blue'], False, pts, 2)
+        if self.ghost_bool and self.ghost_vels is not None: pg.draw.lines(surface, colour_palette['red2'], False, ghost_pts, 1)
 
         #draw title
-        title_surf = font.render(self.title, True, colour_pallete['white'])
+        title_surf = font.render(self.title, True, colour_palette['white'])
         surface.blit(title_surf, (self.rect.x, self.rect.y - 25))
 
         #draw axis
 
         #draw current value
-        current_speed_text = font.render(f"{slice_vels[-1]:.1f} m/s", True, colour_pallete['white'])
+        current_speed_text = font.render(f"{slice_vels[-1]:.1f} m/s", True, colour_palette['white'])
         surface.blit(current_speed_text, (self.rect.right, py))
 
 

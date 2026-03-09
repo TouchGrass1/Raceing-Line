@@ -53,7 +53,7 @@ class Divider:
         self.rect = pg.Rect(x, y, w, h)
 
     def draw(self, screen):
-        pg.draw.rect(screen, colour_pallete['line grey'], self.rect)
+        pg.draw.rect(screen, colour_palette['line grey'], self.rect)
 
 # ---------- TOP PANEL ----------
 class TopPanel(BasePanel):
@@ -445,16 +445,20 @@ def calculate_auto_scale(clip_rect, track_rect, padding=40):
     
     return scale, (offset_x, offset_y)
 
-def get_car_position(sim_time, racing_line, time_array):
+def get_car_position(current_time, racing_line, time_array):
+    total_lap_time = time_array[-1]
+    local_sim_time = current_time % total_lap_time
+
     racing_line = np.vstack([racing_line, racing_line[0]])
-    car_x = np.interp(sim_time, time_array, racing_line[:, 0]) #LERP the car pos
-    car_y = np.interp(sim_time, time_array, racing_line[:, 1])
+    car_x = np.interp(local_sim_time, time_array, racing_line[:, 0]) #LERP the car pos
+    car_y = np.interp(local_sim_time, time_array, racing_line[:, 1])
 
     diffs = np.diff(racing_line, axis=0)
     angles = np.arctan2(diffs[:, 1], diffs[:, 0]) #find angles of heading in RAD
     angles = np.append(angles, angles[0])
-    
-    car_angle = np.interp(sim_time, time_array, angles)
+
+    unwrapped_angles = np.unwrap(angles)
+    car_angle = np.interp(local_sim_time, time_array, unwrapped_angles)
     
     return (car_x, car_y), car_angle
 
@@ -616,7 +620,7 @@ def main():
                 if right_panel.recalculate_btn.rect.collidepoint(event.pos):
                         top_panel.show_popup = True
                         top_panel.draw_popup(screen)
-                        pg.display.flip()      
+                        pg.display.flip()
                         racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
                         right_panel.speed_graph.precompute_telemetry(best_time, vels)
                         right_panel.GForce_graph.precompute_telemetry(best_time, acceleration)
@@ -723,9 +727,9 @@ def main():
         screen.set_clip(clip_rect)
         if mesh is not None:
             #raw car coords
-            car_world_pos, car_angle = get_car_position(sim_time, racing_line, best_time)
+            car_world_pos, car_angle = get_car_position(current_time, racing_line, best_time)
             if left_panel.show_ghost_toggle.get_state() == "Hide Ghost" and left_panel.ghost_line is not None: #show ghost if on
-                ghost_world_pos, ghost_car_angle = get_car_position(sim_time, left_panel.ghost_line, left_panel.ghost_times)
+                ghost_world_pos, ghost_car_angle = get_car_position(current_time, left_panel.ghost_line, left_panel.ghost_times)
             else:
                 ghost_world_pos, ghost_car_angle = None, None
             
