@@ -11,7 +11,10 @@ def main():
     pg.init()
     width = 1280
     height = 720
-    screen = pg.display.set_mode((width, height))
+    screen = pg.display.set_mode(flags=pg.FULLSCREEN)
+    #screen = pg.display.set_mode((width, height))
+    screen_shape = screen.get_size()
+    width, height = screen_shape
     pg.display.set_caption('Racing Lines')
     font_size = height//30
     font = pg.font.Font(None, font_size)

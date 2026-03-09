@@ -323,7 +323,6 @@ class TelemetryGraph:
         self.ghost_bool = False
     
     def precompute_telemetry(self, time_arr, vels):
-
         self.total_time = time_arr[-1]
         self.num_samples = int(self.total_time / self.STEP_SIZE_SECONDS) #calculate number of samples with step_s in seconds
         
@@ -342,58 +341,71 @@ class TelemetryGraph:
         self.ghost_bool = not self.ghost_bool
         
 
+    def get_circular_slice(self, data, index, window_size):
+        if index >= window_size:
+            return data[index - window_size : index]
+        else:
+            part2 = data[0 : index]
+            part1 = data[-(window_size - len(part2)):]
+            return np.concatenate([part1, part2])
+    
     def draw(self, surface, font, sim_time, WINDOW_SIZE_SECONDS = 10):
         if WINDOW_SIZE_SECONDS <= 0:
             WINDOW_SIZE_SECONDS = 10
-        window_indices = int(WINDOW_SIZE_SECONDS / self.STEP_SIZE_SECONDS)
+
         if self.smooth_vels is None:
             return
-        current_idx = int((sim_time / self.STEP_SIZE_SECONDS))
+        
+        current_window_ratio = WINDOW_SIZE_SECONDS / self.total_time
+        current_window_pts = int(current_window_ratio * len(self.smooth_vels))
+        
+        progress_ratio = sim_time / self.total_time
+        current_idx = int(progress_ratio * (len(self.smooth_vels) - 1))
+
+
 
         if self.ghost_bool and self.ghost_vels is not None:
-            max_v = max(np.maximum(self.smooth_vels, self.ghost_vels))
-            print(max_v)
+            # the ghost might have a different total_time, but use its own length
+            ghost_window_pts = int(current_window_ratio * len(self.ghost_vels))
+            ghost_idx = int(progress_ratio * (len(self.ghost_vels) - 1))
+            
+            max_v = max(np.max(self.smooth_vels), np.max(self.ghost_vels))
 
-            if current_idx >= window_indices:
-                slice_vels = self.smooth_vels[current_idx - window_indices : current_idx]
-                slice_ghost = self.ghost_vels[current_idx - window_indices : current_idx]
-            else: #make list circular
-                part2 = self.smooth_vels[0 : current_idx]
-                part1 = self.smooth_vels[-(window_indices - len(part2)):]
-                slice_vels = np.concatenate([part1, part2])
+            slice_vels = self.get_circular_slice(self.smooth_vels, current_idx, current_window_pts)
+            slice_ghost = self.get_circular_slice(self.ghost_vels, ghost_idx, ghost_window_pts)
 
-                part2 = self.ghost_vels[0 : current_idx]
-                part1 = self.ghost_vels[-(window_indices - len(part2)):]
-                slice_ghost = np.concatenate([part1, part2])
         else:
-            max_v = max(self.smooth_vels)
-
-            if current_idx >= window_indices:
-                slice_vels = self.smooth_vels[current_idx - window_indices : current_idx]
-
-            else: #make list circular
-                part2 = self.smooth_vels[0 : current_idx]
-                part1 = self.smooth_vels[-(window_indices - len(part2)):]
-                slice_vels = np.concatenate([part1, part2])
+            max_v = np.max(self.smooth_vels)
+            slice_vels = self.get_circular_slice(self.smooth_vels, current_idx, current_window_pts)
 
 
 
-        #Drawing part
+
+        #drawing part current car
         pts = []
-        ghost_pts = []
+        num_pts = len(slice_vels)
         for i, val in enumerate(slice_vels):
-            rel_x = i / window_indices
-            px = self.rect.x + (rel_x * self.rect.width)
+            if num_pts > 1:rel_x = i / (num_pts - 1) #normalised x position in the window
+            else: rel_x= 0 #prevent div by 0
+            
+            px = self.rect.x + (rel_x * self.rect.width) #map to screen x position
                     
             norm_y = np.clip(val / max_v, 0, 1)
-            py = self.rect.bottom - (norm_y * self.rect.height) #inverted for pygame
+            py = self.rect.bottom - (norm_y * self.rect.height) 
             pts.append((px, py))
 
-            if self.ghost_bool and self.ghost_vels is not None:
-                norm_y_ghost = np.clip(slice_ghost[i] / max_v, 0, 1)
-                py = self.rect.bottom - (norm_y_ghost * self.rect.height) #inverted for pygame
-                ghost_pts.append((px, py))
-
+        #drawing part ghost car
+        ghost_pts = []
+        if self.ghost_bool and self.ghost_vels is not None:
+            num_ghost_pts = len(slice_ghost)
+            for i, val in enumerate(slice_ghost):
+                if num_ghost_pts > 1: rel_x = i / (num_ghost_pts - 1)  #normalise ghost seperately so it matchtes to the same point on the track
+                else: rel_x= 0 
+                px = self.rect.x + (rel_x * self.rect.width)
+                
+                norm_y_ghost = np.clip(val / max_v, 0, 1)
+                py_ghost = self.rect.bottom - (norm_y_ghost * self.rect.height)
+                ghost_pts.append((px, py_ghost))
 
         #bg
         pg.draw.rect(surface, (30, 30, 30), self.rect)

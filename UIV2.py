@@ -476,7 +476,9 @@ def follow_car(sim_time, racing_line, time_array, scale, center):
 
     return new_offset, center, car_angle
 
-def draw_car(screen, pos, angle):
+def draw_car(screen, pos, angle, ghost_bool = False):
+    if pos is None:
+        return
     car_length = 20
     car_width = 18
     #Triangle --> three points
@@ -491,8 +493,9 @@ def draw_car(screen, pos, angle):
         rx = x * np.cos(angle) - y * np.sin(angle)
         ry = x * np.sin(angle) + y * np.cos(angle)
         rotated_pts.append((pos[0] + rx, pos[1] + ry))
-
-    pg.draw.polygon(screen, colour_palette['ORANGE'].value, rotated_pts)
+    
+    if ghost_bool:    pg.draw.polygon(screen, colour_palette['LIGHT_GREY'].value, rotated_pts)
+    else:     pg.draw.polygon(screen, colour_palette['ORANGE'].value, rotated_pts)
 
 def transform_pts(points, scale, offset):
     return [(int(p[0] * scale + offset[0]), int(p[1] * scale + offset[1])) for p in points]
@@ -523,8 +526,8 @@ def main():
     fps = 60
     dt = 1/fps
 
-    #screen = pg.display.set_mode(flags=pg.FULLSCREEN)
-    screen = pg.display.set_mode((1280, 720))
+    screen = pg.display.set_mode(flags=pg.FULLSCREEN)
+    #screen = pg.display.set_mode((1280, 720))
     screen_shape = screen.get_size()
     pg.display.set_caption('Racing Lines')
 
@@ -576,6 +579,9 @@ def main():
     # Dividers
     dividers = BasePanel(screen_shape, font)
 
+    ghost_screen_pos = None
+    ghost_car_angle = None
+
 
 
     # Event loop
@@ -604,7 +610,7 @@ def main():
                 
                 if left_panel.save_ghost_btn.rect.collidepoint(event.pos):
                     right_panel.speed_graph.save_telementry()
-                if left_panel.save_ghost_btn.rect.collidepoint(event.pos):
+                if left_panel.show_ghost_toggle.rect.collidepoint(event.pos):
                     right_panel.speed_graph.update_ghost_bool()
                 
                 if right_panel.recalculate_btn.rect.collidepoint(event.pos):
@@ -612,6 +618,8 @@ def main():
                         top_panel.draw_popup(screen)
                         pg.display.flip()      
                         racing_line, best_time, vels, mesh, scale, offset, track_rect, pb_str, start_time, acceleration = run_GA(variables, clip_rect)
+                        right_panel.speed_graph.precompute_telemetry(best_time, vels)
+                        right_panel.GForce_graph.precompute_telemetry(best_time, acceleration)
                         top_panel.show_popup = False
 
 
@@ -649,7 +657,6 @@ def main():
             new_selection = track_dropdown.get_track()
             if new_selection == 'import': #if import is selected
                 path, props_path = open_file_browser()
-                print("path s", path)
                 if path is not None: #if a file was selected
                     track_filename = Path(path).stem #get filename
                     add_real_properties(track_filename, props_path) #add real propeties to dict
@@ -717,12 +724,17 @@ def main():
         if mesh is not None:
             #raw car coords
             car_world_pos, car_angle = get_car_position(sim_time, racing_line, best_time)
+            if left_panel.show_ghost_toggle.get_state() == "Hide Ghost" and left_panel.ghost_line is not None: #show ghost if on
+                ghost_world_pos, ghost_car_angle = get_car_position(sim_time, left_panel.ghost_line, left_panel.ghost_times)
+            else:
+                ghost_world_pos, ghost_car_angle = None, None
             
             if follow_car_bool:
                 #car in center and track moves around it
                 render_offset = [clip_rect.centerx - (car_world_pos[0] * scale), 
                                  clip_rect.centery - (car_world_pos[1] * scale)] #offset to render track with car in center of screen
                 car_screen_pos = clip_rect.center
+
                 
                 mini_rect = pg.Rect(clip_rect.x + 10, clip_rect.y + 10, 200, 200) #mini map rect in top left of track area
                 m_scale, m_offset = calculate_auto_scale(mini_rect, track_rect, padding=5)
@@ -739,13 +751,21 @@ def main():
                                   car_world_pos[1] * scale + render_offset[1])
                 mini_data = None #no minimap
 
+            if ghost_world_pos is not None:
+                ghost_screen_pos = (ghost_world_pos[0] * scale + render_offset[0], 
+                                ghost_world_pos[1] * scale + render_offset[1])
+                
+
+            left_panel.save_ghost_func(racing_line, vels, best_time)
+            left_panel.show_ghost_func(screen, scale, render_offset)              
+            
+            if ghost_world_pos is not None: draw_car(screen, ghost_screen_pos, ghost_car_angle, ghost_bool = True)
 
             draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset, mini_data)
             draw_car(screen, car_screen_pos, car_angle)
+
             throttle = get_currentThrottle(sim_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))
-            left_panel.save_ghost_func(racing_line, vels, best_time)
-            left_panel.show_ghost_func(screen, scale, render_offset)
         
         screen.set_clip(None)
         

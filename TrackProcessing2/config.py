@@ -6,14 +6,14 @@ config = {
     "elite_rate": 0.1, #percentage of top individuals to carry over to next generation
     "mut_rate": 0.7, #mutation rate
     "smoothing_factor": 0.1, #the higher the number the more smoothing
-    "nudging_factor": 6, #the higher the number the more aggressive the nudge
-    "window_factor": 0.1, #the size of the window during mutations
+    "nudging_factor": 20, #the higher the number the more aggressive the nudge
+    "window_factor": 0.15, #the higher the number the wider the window for nudging
     "smooth_to_nudge_factor": 0.8, #ratio of smooth to nudge chance
 
-    "total_generations": 50, #50 
+    "total_generations": 1, #50 
     "total_repeats": 1, #20 number of times to repeat the whole GA 
-    "min_generations": 25, #minimum number of generations to run before checking for convergence
-    "num_points_across": 60, #number of points to sample across the width of the track
+    "min_generations": 30, #minimum number of generations to run before checking for convergence
+    "num_points_across": 100, #number of points to sample across the width of the track
     "mesh_res": 1, #the bigger the number the lower the resolution
     "bias_factor": 0.1 # how much it pulls towards the center
 }
