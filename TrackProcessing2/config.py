@@ -10,7 +10,7 @@ config = {
     "window_factor": 0.15, #the higher the number the wider the window for nudging
     "smooth_to_nudge_factor": 0.8, #ratio of smooth to nudge chance
 
-    "total_generations": 1, #50 
+    "total_generations": 50, #50 
     "total_repeats": 1, #20 number of times to repeat the whole GA 
     "min_generations": 30, #minimum number of generations to run before checking for convergence
     "num_points_across": 100, #number of points to sample across the width of the track
@@ -46,8 +46,8 @@ default_variables = {
     'lapNo': 0,
     'elevation': 0,
     'temp': 20,
-    'fuel': 1,
-}
+    'fuel%': 1,
+    }
 
 variable_options = {
     'track': ['silverstone', 'monza', 'qatar', 'import'],

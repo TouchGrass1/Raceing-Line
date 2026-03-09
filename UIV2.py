@@ -53,7 +53,7 @@ class Divider:
         self.rect = pg.Rect(x, y, w, h)
 
     def draw(self, screen):
-        pg.draw.rect(screen, colour_palette['line grey'], self.rect)
+        pg.draw.rect(screen, colour_palette['LINE_GREY'].value, self.rect)
 
 # ---------- TOP PANEL ----------
 class TopPanel(BasePanel):
@@ -202,7 +202,9 @@ class RightPanel(BasePanel):
         #default values
         throttle_val=0.45
         brake_val=0.9
-        fuel_val = 0.1
+        fuel_val = default_variables['fuel%']
+        elevation = default_variables['elevation']
+        temp = default_variables['temp']
         lap_val = default_variables['lapNo']
         self.window_size = 10
 
@@ -221,9 +223,13 @@ class RightPanel(BasePanel):
         self.tyre_toggle = Toggle((self.right_panel_start_x + (panel_width//3)), int(self.panel_height * 0.35), self.screen_shape, variable_options['tyre'])
 
         #fuel slider
-        self.fuel_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.8), self.slider_width_small, self.slider_height_small, 0, 1, fuel_val, "Fuel", True)
+        self.fuel_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.81), self.slider_width_small, self.slider_height_small, 0, 1, fuel_val, "Fuel", True)
         #tyre wear slider
-        self.lap_no_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.9), self.slider_width_small, self.slider_height_small, 0, 70, lap_val, "Lap Number", True)
+        self.lap_no_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.95), self.slider_width_small, self.slider_height_small, 0, 70, lap_val, "Lap Number", True)
+        #elevation slider
+        self.elevation_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.73), self.slider_width_small, self.slider_height_small, -28, 2200, elevation, "Elevation", True)
+        #temp slider
+        self.temp_slider = Slider(1.04*self.x_margin, int(self.panel_height * 0.87), self.slider_width_small, self.slider_height_small, 0, 45, temp, "Temp", True)
 
         # Graphs
         self.speed_graph = TelemetryGraph((self.right_panel_start_x + 5*(self.x_margin - self.right_panel_start_x)), int(self.panel_height * 0.42), (panel_width - 10*(self.x_margin - self.right_panel_start_x)), (panel_width - 10*(self.x_margin - self.right_panel_start_x)), "Speed vs Time")
@@ -243,6 +249,8 @@ class RightPanel(BasePanel):
     def handle_event(self, event):
         self.tyre_toggle.change_state(event)
         self.fuel_slider.handle_event(event)
+        self.elevation_slider.handle_event(event)
+        self.temp_slider.handle_event(event)
         self.lap_no_slider.handle_event(event)
         self.window_input.handle_event(event)
         if self.window_input.is_correct == True: #if enter is pressed
@@ -258,6 +266,8 @@ class RightPanel(BasePanel):
         self.brake_slider.draw(surface, self.font)
         self.tyre_toggle.draw(surface, self.font)
         self.fuel_slider.draw(surface, self.font)
+        self.elevation_slider.draw(surface, self.font)
+        self.temp_slider.draw(surface, self.font)
         self.lap_no_slider.draw(surface, self.font)
         self.speed_graph.draw(surface, self.small_font, sim_time, self.window_size)
         self.window_input.draw(surface)
@@ -388,7 +398,7 @@ def zoom(current_scale, current_offset, in_bool, mouse_pos):
     
     return new_scale, (new_offset_x, new_offset_y)
 
-def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset, mini_map_data=None):
+def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset):
 
     #draw boundaries
     left_pts = transform_pts(mesh[:, 0, :], scale, offset)
@@ -410,26 +420,26 @@ def draw_track_elements(screen, mesh, racing_line, velocities,  scale, offset, m
         end = transform_pts([racing_line[i+1]], scale, offset)[0]
         pg.draw.line(screen, color, start, end, 4)
     
-    if mini_map_data:
-        m_rect = mini_map_data['rect']
-        m_scale = mini_map_data['scale']
-        m_off = mini_map_data['offset']        
-    
-        m_left = transform_pts(mesh[::15, 0, :], m_scale, m_off) #slice to reduce number of points drawn
-        m_right = transform_pts(mesh[::15, -1, :], m_scale, m_off)
-    
-        #draw bg
-        pg.draw.rect(screen, colour_palette['BG_GREY'].value, mini_map_data['rect'])
-        pg.draw.rect(screen, colour_palette['WHITE'].value, m_rect, 1) #border
+def draw_mini_map(screen, mesh, mini_map_data):
+    m_rect = mini_map_data['rect']
+    m_scale = mini_map_data['scale']
+    m_off = mini_map_data['offset']        
 
-        #draw boundaries
-        pg.draw.lines(screen, colour_palette['RED'].value, True, m_left, 1)
-        pg.draw.lines(screen, colour_palette['GREEN'].value, True, m_right, 1)
-        
-        #draw car dot
-        cx = int(mini_map_data['car_pos'][0] * m_scale + m_off[0])
-        cy = int(mini_map_data['car_pos'][1] * m_scale + m_off[1])
-        pg.draw.circle(screen, colour_palette['ORANGE'].value, (cx, cy), 4)
+    m_left = transform_pts(mesh[::15, 0, :], m_scale, m_off) #slice to reduce number of points drawn
+    m_right = transform_pts(mesh[::15, -1, :], m_scale, m_off)
+
+    #draw bg
+    pg.draw.rect(screen, colour_palette['BG_GREY'].value, mini_map_data['rect'])
+    pg.draw.rect(screen, colour_palette['WHITE'].value, m_rect, 1) #border
+
+    #draw boundaries
+    pg.draw.lines(screen, colour_palette['RED'].value, True, m_left, 1)
+    pg.draw.lines(screen, colour_palette['GREEN'].value, True, m_right, 1)
+    
+    #draw car dot
+    cx = int(mini_map_data['car_pos'][0] * m_scale + m_off[0])
+    cy = int(mini_map_data['car_pos'][1] * m_scale + m_off[1])
+    pg.draw.circle(screen, colour_palette['ORANGE'].value, (cx, cy), 4)
 
 def calculate_auto_scale(clip_rect, track_rect, padding=40):     
     #central panel dimensions minus padding
@@ -462,23 +472,6 @@ def get_car_position(current_time, racing_line, time_array):
     
     return (car_x, car_y), car_angle
 
-def follow_car(sim_time, racing_line, time_array, scale, center):
-    #set car to center of screen and adjust track acordingly
-    racing_line = np.vstack([racing_line, racing_line[0]])
-    car_x = np.interp(sim_time, time_array, racing_line[:, 0]) #LERP the car pos
-    car_y = np.interp(sim_time, time_array, racing_line[:, 1])
-
-    diffs = np.diff(racing_line, axis=0)
-    angles = np.arctan2(diffs[:, 1], diffs[:, 0]) #find angles of heading in RAD
-    angles = np.append(angles, angles[0])
-    
-    car_angle = np.interp(sim_time, time_array, angles)
-
-    new_offset = [center[0] - (car_x * scale), center[1] - (car_y * scale)] #makes the car the center of the screen
-
-
-
-    return new_offset, center, car_angle
 
 def draw_car(screen, pos, angle, ghost_bool = False):
     if pos is None:
@@ -652,9 +645,11 @@ def main():
             right_panel.handle_event(event)
             top_panel.handle_event(event)
             
-
-        if variables['tyre'] != right_panel.tyre_toggle.get_state():
-            variables['tyre'] = right_panel.tyre_toggle.get_state()
+        variables['fuel%'] = right_panel.fuel_slider.get_value()
+        variables['elevation'] = right_panel.elevation_slider.get_value()
+        variables['temp'] = right_panel.temp_slider.get_value()
+        variables['weather'] = top_panel.weather_toggle.get_state()
+        variables['tyre'] = right_panel.tyre_toggle.get_state()
 
         # track dropdown
         if variables['track'] != track_dropdown.get_track() and track_dropdown.get_track() != "Select Track":
@@ -761,12 +756,12 @@ def main():
                 
 
             left_panel.save_ghost_func(racing_line, vels, best_time)
-            left_panel.show_ghost_func(screen, scale, render_offset)              
-            
-            if ghost_world_pos is not None: draw_car(screen, ghost_screen_pos, ghost_car_angle, ghost_bool = True)
+            left_panel.show_ghost_func(screen, scale, render_offset)                   
 
-            draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset, mini_data)
+            draw_track_elements(screen, mesh, racing_line, vels, scale, render_offset)
+            if ghost_world_pos is not None: draw_car(screen, ghost_screen_pos, ghost_car_angle, ghost_bool = True)
             draw_car(screen, car_screen_pos, car_angle)
+            if mini_data: draw_mini_map(screen, mesh, mini_data)
 
             throttle = get_currentThrottle(sim_time, best_time, acceleration)
             right_panel.update_health_bar_sliders(throttle, (1-throttle))

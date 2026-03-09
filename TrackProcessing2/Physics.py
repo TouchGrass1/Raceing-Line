@@ -88,9 +88,8 @@ class PhysicsFormulas:
         return P/v_max, v_max
 
 class updateVar:
-    def updateMass(noLap, maxNoLap): #end of every lap
-        if maxNoLap == 0: return PhysicsConsts['MASS_MAX'].value
-        return noLap*((PhysicsConsts['MASS_MIN'].value - PhysicsConsts['MASS_MAX'].value)/maxNoLap) + PhysicsConsts['MASS_MAX'].value
+    def updateMass(fuel):
+        return PhysicsConsts['MASS_MIN'].value + fuel*PhysicsConsts['FUEL_MAX'].value
 
     def updateDownforce(vel):
         PhysicsValidator.validate_speed(vel)

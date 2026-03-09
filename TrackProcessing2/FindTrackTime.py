@@ -21,7 +21,7 @@ def findMaxVelocity(radius, mass, density, mu):
     np.clip(maxVel, 0, maxVerticalVel)
     return maxVel
 
-def findVelocities(maxVelArr, dists, mass, density, noLap, tyreType):
+def findVelocities(maxVelArr, dists, mass, density, lapNo, tyreType):
     n = len(dists)
     vel = np.zeros(n)
 
@@ -35,7 +35,7 @@ def findVelocities(maxVelArr, dists, mass, density, noLap, tyreType):
         thrust = updateVar.updateThrust(u)
         drag = updateVar.updateDrag(u, density)
         finalForce = updateVar.updateResultantForce(thrust, drag)
-        tyreCoeff = updateVar.updateTyreWear(tyreType, noLap)
+        tyreCoeff = updateVar.updateTyreWear(tyreType, lapNo)
         staticFriction = updateVar.updateStaticForceFriction(tyreCoeff, mass, downForce)
 
         # Accelerate but cap by max velocity
@@ -158,16 +158,16 @@ def main(rand_bsp, radius, pixels_per_meter, variables):
     mass = variables['mass'] #KG
     temp = variables['temp'] #deg
     height = variables['elevation'] #m above sea level
-    noLap = variables['lapNo']
+    lapNo = variables['lapNo']
+    fuel = variables['fuel%']
     tyreType = variables['tyre']
-
-
-    maxNoLap = 70 #maximum number of laps
+    weather = variables['weather']
+    print(f"mass: {mass}, temp: {temp}, height: {height}, lapNo: {lapNo}, fuel: {fuel}, tyreType: {tyreType}, weather: {weather}")
     
     pressure = updateVar.updatePressure(height, temp)
     density = updateVar.updateDensity(pressure, temp)
 
-    tyre_mu = updateVar.updateTyreWear(tyreType, noLap)
+    tyre_mu = updateVar.updateTyreWear(tyreType, lapNo)
     if variables['weather'] == 'wet':
         tyre_mu = tyre_mu / 2
 
@@ -176,12 +176,12 @@ def main(rand_bsp, radius, pixels_per_meter, variables):
     dists = np.hypot(np.diff(x_loop), np.diff(y_loop)) / pixels_per_meter
     #EVERY  LAP STUFF
     
-    mass = updateVar.updateMass(noLap, maxNoLap)
+    mass = updateVar.updateMass(fuel)
 
 
     maxVelArr = findMaxVelocity(radius, mass, density, tyre_mu)
 
-    vel = findVelocities(maxVelArr, dists, mass, density, noLap, tyreType)
+    vel = findVelocities(maxVelArr, dists, mass, density, lapNo, tyreType)
     t  = calculateTrackTime(vel, dists)
     print(f"lap time: {int(t[-1]//60)}: {t[-1]%60:.3f}")
     return vel, t
