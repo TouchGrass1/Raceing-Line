@@ -1,67 +1,169 @@
-FUNCTION FindBoundary(startNode):
-    boundarySet = {startNode}
+FUNCTION FindBoundary(startNode)
+    boundarySet = [startNode]
     currentNode = startNode
-    
-    LOOP:
+    foundNext = True
+
+    WHILE foundNext == True
         foundNext = False
         
-        #Iterate through expanding search windows: 3x3, 5x5, ..., 11x11
-        FOR radius FROM 1 TO 5:
+        // Iterate through expanding search windows (3x3 to 11x11)
+        FOR radius = 1 TO 5
             windowSize = (2 * radius) + 1
             neighbors = GetPixelsInWindow(currentNode, windowSize)
 
-            FOR EACH pixel IN neighbors:
-                IF pixel.color == GRAY AND pixel NOT IN boundarySet:
-                    IF radius > 1:
-                        DrawLine(currentNode, pixel) // Join gaps if radius was increased
+            FOR EACH pixel IN neighbors
+                IF pixel.colour == GRAY AND NOT(pixel IN boundarySet) THEN
+                    IF radius > 1 THEN
+                        DrawLine(currentNode, pixel) // Bridge gaps
+                    ENDIF
                     
-                    Add pixel TO boundarySet
+                    boundarySet.append(pixel)
                     currentNode = pixel
                     foundNext = True
-                    BREAK LOOP (inner)
-            
-            IF foundNext == True:
-                BREAK FOR (radius loop)
+                    EXIT FOR // Break neighbor loop
+                ENDIF
+            NEXT pixel
 
-        #Stop when back at start or no more pixels found
-        IF currentNode == startNode OR foundNext == False:
-            BREAK LOOP
+            IF foundNext == True THEN 
+                EXIT FOR // Break radius loop
+            ENDIF
+        NEXT radius
+
+        // Check if circuit is complete
+        IF currentNode == startNode THEN
+            foundNext = False
+        ENDIF
+    ENDWHILE
 
     RETURN boundarySet
+ENDFUNCTION
 
-FUNCTION ResampleBoundary(points, targetCount):
-    n = length(points)
-    cumulativeDist = [0]
-    S totalDist = 0
+Genetic Algorithm
 
-    #1. Calculate cumulative distance
-    FOR i FROM 1 TO n - 1:
-        totalDist += Distance(points[i], points[i-1])
-        Append totalDist TO cumulativeDist
+// Function to set up intial population
+FUNCTION InitialisePopulation(populationSize)
+    population = []
+    count = 0
+    
+    WHILE count < populationSize
+        path = CreateRandomBSpline()        
+        path.time = FindTrackTime(path)
+        population.append(path)
+        count = count + 1
+    ENDWHILE
+    
+    RETURN population
+ENDFUNCTION
 
-    resampledPoints = []
-    interval = totalDist / (targetCount - 1)
+// Sort Population by fastest first
+FUNCTION EvaluatePopulation(population)
+    SORT population BY ascending path.time
+    RETURN population
+ENDFUNCTION
 
-    #2. Linearly interpolate to find evenly spaced nodes
-    new_X = linearly Interpolate (cumulativeDist, spacing, points)
+// Pick random parents, with bias towards faster tracks
+FUNCTION SelectParents(population)
+    totalFitness = 0
+    fitnessValues = []
+    
+    FOR EACH individual IN population
+        fitness = 1 / individual.time
+        fitnessValues.append(fitness)
+        totalFitness = totalFitness + fitness
+    NEXT individual
+    
+    // Choose parents based on probability (Fitness / TotalFitness)
+    parent1 = RandomChoice(population, fitnessValues, totalFitness)
+    parent2 = RandomChoice(population, fitnessValues, totalFitness)
+    
+    RETURN [parent1, parent2]
+ENDFUNCTION
 
-    RETURN resampledPoints
+// Combines two paths at a random splice point to create a new offspring
+FUNCTION Crossover(parent1, parent2)
+    splitPoint = RandomFloat(0.25, 0.75)
+    index = Floor(length(parent1) * splitPoint)
+    
+    // Create child by taking the first section of P1 and the second of P2
+    childFirstPart = parent1[0 TO index]
+    childSecondPart = parent2[index + 1 TO length(parent2) - 1]
+    
+    child = Combine(childFirstPart, childSecondPart)
+    RETURN child
+ENDFUNCTION
 
-Center Line method
+// Introduces random variation to prevent the population from falling into a local minima
+FUNCTION Mutate(individual, mutationRate)
+    FOR i = 0 TO length(individual) - 1
+        IF Random(0, 1) < mutationRate THEN
+            // Replace a node/gene with a random value from the valid track mesh, in the same row
+            individual[i] = RandomChoiceFromGenePool()
+        ENDIF
+    NEXT i
+    
+    RETURN individual
+ENDFUNCTION
 
-FUNCTION CenterLine(points):
-    skeleton = skeletonize(points)
-    centerlineArr = array(skeleton)
-    resampled = ResampleBoundary(centerlineArr)
-    centerLineSpline = catMullRom(resampled)
-    normal = -1/tangent(centerLineSpline)
-    for point in centerLineSpline:
-            mesh_row_pts = point + normalVector*offset
-            Add mesh_row_pts TO mesh
-    return mesh
-    save mesh as BIN file
+FUNCTION Main()
+    populationSize = 100
+    generations = 100
+    eliteRate = 0.1
+    mutationRate = 0.1
+    
+    currentGeneration = InitialisePopulation(populationSize)
+    genCount = 0
+    
+    WHILE genCount < generations
+        currentGeneration = EvaluatePopulation(currentGeneration)
+        
+        // Save top 10% to next generation
+        numElites = populationSize * eliteRate
+        newPopulation = currentGeneration[0 TO numElites]
+        
+        // Fill the rest of the population with new offspring
+        WHILE length(newPopulation) < populationSize
+            parents = SelectParents(currentGeneration)
+            child = Crossover(parents[0], parents[1])
+            child = Mutate(child, mutationRate)
+            
+            newPopulation.append(child)
+        ENDWHILE
+        
+        currentGeneration = newPopulation
+        genCount = genCount + 1
+    ENDWHILE
+    
+    RETURN currentGeneration[0]
+ENDFUNCTION
+
 
 Physics
+
+FUNCTION Velocity(maxVelArr, mass, density)
+    velocities = []
+    
+    // Forward Pass acceleration and top speed limits
+    FOR i = 0 TO length(maxVelArr) - 1
+        u = velocities[i - 1]
+        // Physics: Resultant Force = Thrust - Drag
+        force = CalculateThrust(u) - CalculateDrag(u, density)
+        acceleration = force / mass
+        
+        // v = u + at
+        newVel = u + (acceleration * 0.01)
+        velocities[i] = MIN(maxVelArr[i], newVel)
+    NEXT i
+
+    // Corrects velocity if the car cannot slow down in time for a corner
+    FOR i = length(velocities) - 2 TO 0 STEP -1
+        maxDecel = 9.81 * 1.5 // Example deceleration constant
+        IF velocities[i] > (velocities[i + 1] + maxDecel) THEN
+            velocities[i] = velocities[i + 1] + maxDecel
+        ENDIF
+    NEXT i
+
+    RETURN velocities
+ENDFUNCTION
 
 FUNCTION MAX VELOCITY FUNC (RADIUS, MASS, DENSITY):
     Max Vertical Thrust, max Vertical Velocity = max Thrust Equation(density)
@@ -71,27 +173,7 @@ FUNCTION MAX VELOCITY FUNC (RADIUS, MASS, DENSITY):
     clip(maxVel, 0, maxVerticalVel)
     return maxVel
 
-FUNCTION VELOCITY FUNC(MAXVELARR, RAND_BSP, PIXELS_PER_METER, MASS, DENSITY, NOLAP, TYRETYPE):
-    X = x values of random bspline
-    Y = y values of random bslpine
-    Dx = distance between x values
-    Dy = distnace between y values
-    Do until counter == length of max velocity array:
-    u = previous velocity
-    downforce = update downforce (u)
-    thurst = update thrust (u)
-    drag = update drag (u, density)
-    final Force = update resultant froce (thrust, drag)
-    tyre coeff = update tyre coefficient
-    static fraction = update static friction
-    a = minimum of static friction / mass, preset maximum acceleration, final force / mass
-    coefficients = 0.5*a, u, -dx
-    dt = maximum of the solutions of the quadratic equation with coefficients = coefficients
-    Velocity  = minimum of (max velocity or u + a*dt)
-    Do until counter == length of max velocity array, going backwards:
-    If current velocity is greater than next velocity - maximum deceleration:
-    Current velocity = next velocity - maximum deceleration
-    Return velocities
+
 
 FUNCTION CALCULATE TRACK TIME FUNC (VELOCITIES, PATH):
     X = x values of path
@@ -264,87 +346,45 @@ CLASS RightPanel(BasePanel):
         draw weight box
         draw laptime graphs
 
-CLASS Button:
-    FUNC innit (self, x ,y , screen_shape, label):
-        self.width = ...
-        self.height = ...
-        self.clicked = false
-        self.clicking = false
-        self.hover = false
-        self.label = label
-    FUNC draw(self, screen, font):
-        if self.clicking: colour = blue
-        elif self.hover: colour = red2
-        else: colour = red
-        draw button
-        draw label text
-    
-    FUNC handle_event(self, event):
-        if MOUSEBUTTONDOWN:
-            if mouse posistion in button:
-                self.clicking = True
-        if MOUSEBUTTONUP:
-            if self.clicking and mouse posistion in button:
-                self.clicked = true
-            self.clicking = false
-        if MOUSEMOTION:
-            if mouse posistion in button:
-                self.hover = True
-            else: self.hover = False
-    
-    FUNC get clicked(self):
-        if self.clicked:
-            self.clicked = False
-            return true
-        return false
+CLASS Button
+    // Constructor
+    PUBLIC PROCEDURE new(pX, pY, pLabel)
+        this.x = pX
+        this.y = pY
+        this.label = pLabel
+        this.clicked = False
+    ENDPROCEDURE
 
-CLASS Dropdown (inherits Button):
-    FUNC innit (self, x, y, screen_shape, label, options):
-        super button innit
-        self.options = options
-        self.expanded = False
-        self.selected_option = label
-        self.hover_options = -1
-        create list of rectangles for each option
+    PUBLIC FUNCTION handle_event(event)
+        IF event.type == MOUSEBUTTONDOWN THEN
+            IF MouseInRect(this.x, this.y, this.width, this.height) THEN
+                this.clicked = True
+                RETURN True
+            ENDIF
+        ENDIF
+        RETURN False
+    ENDFUNCTION
+ENDCLASS
 
-    FUNC draw(self, screen, font):
-        if self.expanded:
-            draw background rect (blue)
-            draw main label text
-            FOR i, option in enumerate(self.options):
-                if i is self.hover_options: colour = red2
-                else: colour = grey
-                
-                if last option: draw rect with bottom rounded corners
-                else: draw rect
-                
-                draw option text
-        else: 
-            call super button draw
+CLASS Dropdown INHERITS Button
+    PUBLIC PROCEDURE new(pX, pY, pLabel, pOptions)
+        super.new(pX, pY, pLabel) // Call base class constructor
+        this.options = pOptions
+        this.expanded = False
+    ENDPROCEDURE
 
-    FUNC handle_event(self, event):
-        if MOUSEBUTTONDOWN and Left Click:
-            if mouse position in button and not expanded:
-                self.expanded = True
-            elif self.expanded:
-                FOR i, rect in enumerate(self.option_rects):
-                    if mouse position in rect:
-                        self.selected_option = option[i]
-                        self.label = self.selected_option
-                        self.expanded = False
-        
-        if MOUSEBUTTONUP and mouse position NOT in button:
-            self.expanded = False
-
-        if MOUSEMOTION and self.expanded:
-            self.hover_options = -1
-            FOR i, rect in enumerate(self.option_rects):
-                if mouse position in rect:
-                    self.hover_options = i
-                    break
-
-    FUNC get_track(self):
-        return self.selected_option
+    // Override the draw method to handle the list of options
+    PUBLIC PROCEDURE draw(surface)
+        IF this.expanded THEN
+            FOR EACH item IN this.options
+                DrawRect(item.x, item.y, item.width, item.height)
+                DrawText(item.label)
+            NEXT item
+        ELSE
+            super.draw(surface)
+        ENDIF
+    ENDPROCEDURE
+ENDCLASS
 
 CLASS Divider:
     FUNC innit(self, x, y, w, h):
