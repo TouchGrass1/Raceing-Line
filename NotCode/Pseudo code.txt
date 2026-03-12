@@ -139,6 +139,61 @@ ENDFUNCTION
 
 Physics
 
+CLASS PhysicsFormulas
+    private GRAVITY = 9.81
+    private pressureSeaLevel = 101325
+    private molarMass = 0.02897
+    private R = 8.314
+
+    PUBLIC FUNCTION downforceEquation(v)
+        // Downforce is proportional to velocity squared
+        RETURN v^2
+    ENDFUNCTION
+
+    // Calculates centripetal force (lateral load)
+    PUBLIC FUNCTION lateral_force(m, v, r)
+        // Check if the car is on a straight (radius is infinite or 0)
+        IF r == 0 OR r == -1 THEN
+            RETURN 0
+        ELSE
+            RETURN (m * (v**2)) / r
+        ENDIF
+    ENDFUNCTION
+
+    // Calculates the friction limit
+    PUBLIC FUNCTION max_grip_force(mu, m, downforce)
+        weight = m * GRAVITY
+        totalVerticalLoad = weight + downforce
+        RETURN totalVerticalLoad * mu
+    ENDFUNCTION
+
+    // Linear tyre wear
+    PUBLIC FUNCTION tyre_wear(lap, muStart, life)
+        wearFactor = (lap * (0.2 * muStart) / life)
+        currentGrip = muStart - wearFactor
+         
+        RETURN currentGrip
+    ENDFUNCTION
+
+    // Calculates air density using the Barometric formula
+    PUBLIC FUNCTION air_density(height, temp)
+        RETURN pressureSeaLevel* e ** ((-molarMass * GRAVITY * height)/ (R * temp))
+    ENDFUNCTION
+
+    PUBLIC FUNCTION drag(v, density, dragCoeff, area)
+        RETURN 0.5 * dragCoeff * area * density * POW(v, 2)
+    ENDFUNCTION
+
+    PUBLIC FUNCTION max_thrust(v, power)
+        IF v <= 0 THEN
+            RETURN 99999 // prevent division by 0 error
+        ENDIF        
+        RETURN power / v
+    ENDFUNCTION
+ENDCLASS
+
+Find Times
+
 FUNCTION Velocity(maxVelArr, mass, density)
     velocities = []
     
@@ -156,7 +211,7 @@ FUNCTION Velocity(maxVelArr, mass, density)
 
     // Corrects velocity if the car cannot slow down in time for a corner
     FOR i = length(velocities) - 2 TO 0 STEP -1
-        maxDecel = 9.81 * 1.5 // Example deceleration constant
+        maxDecel = 7 * 9.61 //7g's
         IF velocities[i] > (velocities[i + 1] + maxDecel) THEN
             velocities[i] = velocities[i + 1] + maxDecel
         ENDIF
@@ -172,8 +227,6 @@ FUNCTION MAX VELOCITY FUNC (RADIUS, MASS, DENSITY):
     Max Velocity = sqrt((maxLateralForce*radius) / mass)
     clip(maxVel, 0, maxVerticalVel)
     return maxVel
-
-
 
 FUNCTION CALCULATE TRACK TIME FUNC (VELOCITIES, PATH):
     X = x values of path
@@ -194,12 +247,12 @@ Home Screen
 FUNCTION Login():
     password = string (asdf)
     correct = False
-    while not correct:
+    WHILE not correct:
         text input = string(input("enter password"))
         if password == text input:
             correct = True
             FUNCTION HomeScreen()
-            break while loop
+            END WHILE
         
 
 FUNCTION HomeScreen ():
@@ -271,6 +324,72 @@ FUNCTION HomeScreen ():
 
         update all
         show timer = current time - start time
+
+// Main
+FUNCTION HomeScreen()
+    isQuit = FALSE
+    isTrackLoaded = FALSE
+    isDragging = FALSE
+    startTime = GetCurrentTime()
+    
+    WHILE isQuit == FALSE
+        event = GetUserEvent()
+        mousePos = GetMousePosition()
+        
+        IF event == QUIT_BUTTON_PRESSED THEN
+            isQuit = TRUE
+        ENDIF
+
+        // Reset Simulation
+        IF resetButton.isClicked(mousePos) THEN
+            ResetSystemVariables()
+            isTrackLoaded = FALSE
+            startTime = GetCurrentTime()
+        ENDIF
+
+        // Track Selection Dropdown
+        IF trackDropdown.isClicked(mousePos) THEN
+            selectedTrack = trackDropdown.getSelection()
+            isTrackLoaded = TRUE
+            // Run GA
+            RunTrackProcessing(selectedTrack)
+        ENDIF
+
+        // Physics Parameters
+        IF tyreButton.isClicked(mousePos) THEN
+            currentTyreIndex = (currentTyreIndex + 1) MOD 3
+            UpdateVelocityProfile()
+        ENDIF
+
+        IF weatherButton.isClicked(mousePos) THEN
+            isSunny = NOT isSunny
+            UpdateVelocityProfile()
+        ENDIF
+
+        // Panning
+        IF event == MOUSE_BUTTON_DOWN AND centralPanel.isHovered(mousePos) THEN
+            dragStartPos = mousePos
+            isDragging = TRUE
+        ELSEIF event == MOUSE_BUTTON_UP THEN
+            isDragging = FALSE
+        ENDIF
+
+        IF isDragging == TRUE THEN
+            offsetChange = mousePos - dragStartPos
+            mapCoordinates = mapCoordinates + offsetChange
+        ENDIF
+
+        // Zoom
+        IF event == MOUSE_SCROLL AND centralPanel.isHovered(mousePos) THEN
+            zoomFactor = GetScrollDelta()
+            mapDimensions = mapDimensions * (1 + (zoomFactor / 100))
+        ENDIF
+
+        drawUI()
+
+        UpdateScreen()
+    ENDWHILE
+ENDFUNCTION
 
 CLASS BasePanel:
     FUNC innit (self,  screen_shape, font, font_size):
@@ -347,18 +466,17 @@ CLASS RightPanel(BasePanel):
         draw laptime graphs
 
 CLASS Button
-    // Constructor
     PUBLIC PROCEDURE new(pX, pY, pLabel)
-        this.x = pX
-        this.y = pY
-        this.label = pLabel
-        this.clicked = False
+        x = pX
+        y = pY
+        label = pLabel
+        clicked = False
     ENDPROCEDURE
 
     PUBLIC FUNCTION handle_event(event)
         IF event.type == MOUSEBUTTONDOWN THEN
-            IF MouseInRect(this.x, this.y, this.width, this.height) THEN
-                this.clicked = True
+            IF MouseInRect(x, y, width, height) THEN
+                clicked = True
                 RETURN True
             ENDIF
         ENDIF
@@ -368,15 +486,15 @@ ENDCLASS
 
 CLASS Dropdown INHERITS Button
     PUBLIC PROCEDURE new(pX, pY, pLabel, pOptions)
-        super.new(pX, pY, pLabel) // Call base class constructor
-        this.options = pOptions
-        this.expanded = False
+        super.new(pX, pY, pLabel)
+        options = pOptions
+        expanded = False
     ENDPROCEDURE
 
-    // Override the draw method to handle the list of options
+    // Polymorphism
     PUBLIC PROCEDURE draw(surface)
-        IF this.expanded THEN
-            FOR EACH item IN this.options
+        IF expanded THEN
+            FOR EACH item IN options
                 DrawRect(item.x, item.y, item.width, item.height)
                 DrawText(item.label)
             NEXT item
@@ -409,74 +527,61 @@ CLASS Dividers:
     FUNC get(self, name):
         return divider from dictionary by name
 
-CLASS Slider:
-    FUNC innit(self, x, y, w, h, min_val, max_val, initial_val, label, active):
-        self.active = active
-        self.rect = create rect
-        self.min = min_val
-        self.max = max_val
-        self.val = initial_val
-        self.dragging = False
-        self.handle_x = calculate x position based on value
+CLASS Slider
+    PUBLIC PROCEDURE new(pX, pY, pMin, pMax, pInitial, pActive)
+        active = pActive
+        min = pMin
+        max = pMax
+        val = pInitial
+        handleX = calculatePosition(pInitial)
+    ENDPROCEDURE
 
-    FUNC draw(self, screen, font):
-        draw slider track rect
+    PUBLIC PROCEDURE updateValue(pMouseX)
+        IF active == TRUE THEN
+            handleX = clamp(pMouseX, minBound, maxBound)
+            val = calculateValueFromPos(handleX)
+        ENDIF
+    ENDPROCEDURE
+
+    PUBLIC PROCEDURE draw(pScreen)
+        IF active == TRUE THEN
+            DrawHandleCircle(handleX)
+            DrawText(val)
+        ELSE
+            drawProgressBar(val)
+        ENDIF
+    ENDPROCEDURE
+ENDCLASS
+
+CLASS EntryBox
+    PUBLIC PROCEDURE new(pX, pY)
+        text = ""
+        active = FALSE
+    ENDPROCEDURE
+
+    PUBLIC FUNCTION handleEvent(event)
+        IF event == MOUSEBUTTONDOWN THEN
+            IF mouseInRect() THEN
+                active = TRUE
+            ELSE
+                active = FALSE
+            ENDIF
+        ENDIF
         
-        if self.active:
-            draw handle circle at self.handle_x
-            draw label text
-            draw min value text
-            draw max value text
-            draw current value text
-        else:
-            calculate width based on value percentage
-            draw filled rect (progress bar style)
-            draw percentage text
-
-    FUNC update_value(self, mouse_x):
-        if self.active:
-            keep mouse_x within slider bounds
-            self.handle_x = mouse_x
-            self.val = calculate value based on handle position
-
-CLASS EntryBox:
-    FUNC innit(self, x, y, w, h, text, pwd, placeholder):
-        self.rect = create rect
-        self.color = inactive color
-        self.pwd = pwd
-        self.text = text
-        self.active = False
-        update text surface
-
-    FUNC handle_event(self, event):
-        if MOUSEBUTTONDOWN:
-            if mouse position in box:
-                self.active = True
-                self.color = active color
-            else:
-                self.active = False
-                self.color = inactive color
-        
-        if KEYDOWN:
-            if self.active:
-                if key is RETURN:
-                    if self.text equals self.pwd:
-                        print "Correct Password"
-                        return True
-                    clear self.text
-                elif key is BACKSPACE:
-                    remove last character from self.text
-                else:
-                    add typed character to self.text
-                
-                update text surface to show self.text
-        
-        if not self.active:
-            update text surface to show placeholder
-
-    FUNC draw(self, screen):
-        draw text surface
-        draw border rect
+        IF active == TRUE AND event == KEYDOWN THEN
+            IF key == RETURN THEN
+                    RETURN text
+                ENDIF
+                text = ""
+            ELSEIF key == BACKSPACE THEN
+                text = removeLastChar(text)
+            ELSE
+                text = text + key
+            ENDIF
+        ENDIF
+        RETURN FALSE
+    ENDFUNCTION
+ENDCLASS
 
 CLASS Text:
 
@@ -489,61 +594,52 @@ CLASS Text:
         render text
         draw text on background at self.pos
 
-CLASS Drag:
-    FUNC innit (self):
-        self.moving = False
-        self.start = (0, 0) (where the click began)
-        self.offset = (0, 0) (current position offset)
+CLASS Drag
+    PUBLIC PROCEDURE new()
+        isMoving = FALSE
+        offset = [0, 0]
+    ENDPROCEDURE
 
-    FUNC handle_event(self, event, rect, pos):
-        IF MOUSEBUTTONDOWN:
-            IF mouse position is inside rect:
-                self.moving = True
-                self.start = current mouse position
-                self.offset = current image position
+    PUBLIC FUNCTION handleEvent(event, Rect)
+        IF event == MOUSEBUTTONDOWN AND mouseInRect(Rect) THEN
+            isMoving = TRUE
+            startPos = currentMousePos()
+        ELSEIF event == MOUSEBUTTONUP THEN
+            isMoving = FALSE
+        ELSEIF event == MOUSEMOTION AND isMoving == TRUE THEN
+            change = currentMousePos() - startPos
+            RETURN (offset + change)
+        ENDIF
+        RETURN offset
+    ENDFUNCTION
+ENDCLASS
 
-        ELSE IF MOUSEBUTTONUP:
-            self.moving = False
+CLASS Zoom
+    PUBLIC PROCEDURE new(image)
+        baseImage = image
+        scale = 1.0
+        resizedImage = image
+    ENDPROCEDURE
 
-        ELSE IF MOUSEMOTION and self.moving is True:
-            change = mouse posistion - self.start
-            RETURN new position (offset + change)
+    PUBLIC FUNCTION handleEvent(event)
+        IF event == MOUSEWHEEL THEN
+            IF scrollUp THEN
+                scale = scale + 0.1
+            ELSE
+                scale = max(0.1, scale - 0.1)
+            ENDIF
+            resizedImage = scaleImage(baseImage, scale)
+        ENDIF
+        RETURN resizedImage
+    ENDFUNCTION
+ENDCLASS
 
-        RETURN current pos
-
-CLASS Zoom:
-    FUNC innit (self, image):
-        self.cv_image = convert pygame surface to CV2 format
-        self.h, self.w = image dimensions (height and width)
-        self.ratio = width divided by height
-        self.scale = 1.0 (starting zoom level)
-        self.speed = 0.1 (increment per scroll)
-        self.resized_image = image
-
-    FUNC handle_event(self, event):
-        IF MOUSEWHEEL detected:
-            if scrolling up:
-                self.scale += self.speed
-            else:
-                self.scale -=  self.speed
-                self.scale = max(0.1, self.scale)
-
-            new_w = self.w * self.scale
-            new_h = self.h * self.scale
-            resize self.cv_image using cubic interpolation
-            self.resized_image = convert resized image back to pygame surface
-
-        RETURN self.resized_image
-
-    FUNC get_image(self):
-        RETURN self.resized_image
-
-FUNCTION b_spline(Points, sample_size):
-    apply b-spline formula
+FUNCTION b_spline(points):
+    apply b-spline formula on points
     calculte first and second derrivitve
     return b-spline, curvature
 
-FUNCTION random points(mesh, number of points in a row,  sample_size):
+FUNCTION RANDOM POINTS(mesh, number of points in a row,  sample_size):
     random points = []
     step = round up (length of mesh / sample_size)
 
